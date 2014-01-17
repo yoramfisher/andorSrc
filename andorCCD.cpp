@@ -122,6 +122,7 @@ int AndorCCD::FCCD_GetImage()
    int status = asynSuccess;
    m_frame = cin_data_get_next_frame();
    printf("cin_data_get_next_frame(). frame->number %u\n", m_frame->number);
+   return (0);
 }
 #endif
 
@@ -150,7 +151,7 @@ AndorCCD::AndorCCD(const char *portName, int maxBuffers, size_t maxMemory,
   int status = asynSuccess;
   int i;
   int binX=1, binY=1, minX=0, minY=0, sizeX, sizeY;
-  char model[256];
+  
   static const char *functionName = "AndorCCD";
 
   if (installPath == NULL)
@@ -165,11 +166,11 @@ AndorCCD::AndorCCD(const char *portName, int maxBuffers, size_t maxMemory,
   createParam(AndorTempStatusMessageString,       asynParamOctet, &AndorTempStatusMessage);
   createParam(AndorMessageString,                 asynParamOctet, &AndorMessage);
   createParam(AndorShutterModeString,             asynParamInt32, &AndorShutterMode);
-  ///createParam(AndorShutterExTTLString,            asynParamInt32, &AndorShutterExTTL);
-  ///createParam(AndorPalFileNameString,             asynParamOctet, &AndorPalFileName);
+  createParam(AndorShutterExTTLString,            asynParamInt32, &AndorShutterExTTL);
+  createParam(AndorPalFileNameString,             asynParamOctet, &AndorPalFileName);
   createParam(AndorAccumulatePeriodString,      asynParamFloat64, &AndorAccumulatePeriod);
-  ///createParam(AndorPreAmpGainString,              asynParamInt32, &AndorPreAmpGain);
-  ///createParam(AndorAdcSpeedString,                asynParamInt32, &AndorAdcSpeed);
+  createParam(AndorPreAmpGainString,              asynParamInt32, &AndorPreAmpGain);
+  createParam(AndorAdcSpeedString,                asynParamInt32, &AndorAdcSpeed);
 
   // Create the epicsEvent for signaling to the status task when parameters should have changed.
   // This will cause it to do a poll immediately, rather than wait for the poll time period.
@@ -200,6 +201,10 @@ AndorCCD::AndorCCD(const char *portName, int maxBuffers, size_t maxMemory,
     // YF TODO checkStatus(GetHeadModel(model));
     // YF TODO checkStatus(SetReadMode(ARImage));
     // YF TODO checkStatus(SetImage(binX, binY, minX+1, minX+sizeX, minY+1, minY+sizeY));
+    sizeX = CIN_DATA_FRAME_WIDTH;
+    sizeY = CIN_DATA_FRAME_HEIGHT;
+    
+   
     callParamCallbacks();
   } catch (const std::string &e) {
     asynPrint(pasynUserSelf, ASYN_TRACE_ERROR,
@@ -207,7 +212,8 @@ AndorCCD::AndorCCD(const char *portName, int maxBuffers, size_t maxMemory,
       driverName, functionName, e.c_str());
     return;
   }
-  
+
+#if 0  
   // Initialize ADC enums
   for (i=0; i<MAX_ADC_SPEEDS; i++) {
     mADCSpeeds[i].EnumValue = i;
@@ -220,10 +226,11 @@ AndorCCD::AndorCCD(const char *portName, int maxBuffers, size_t maxMemory,
     mPreAmpGains[i].EnumString = (char *)calloc(MAX_ENUM_STRING_SIZE, sizeof(char));
   } 
   
+#endif
 
   /* Set some default values for parameters */
   status =  setStringParam(ADManufacturer, "FCCD");
-  status |= setStringParam(ADModel, model);
+  status |= setStringParam(ADModel, ""); // Model ?
   status |= setIntegerParam(ADSizeX, sizeX);
   status |= setIntegerParam(ADSizeY, sizeY);
   status |= setIntegerParam(ADBinX, 1);
@@ -246,8 +253,8 @@ AndorCCD::AndorCCD(const char *portName, int maxBuffers, size_t maxMemory,
   status |= setIntegerParam(NDArraySize, sizeX*sizeY*sizeof(epicsUInt16)); 
   mAccumulatePeriod = 2.0;
   status |= setDoubleParam(AndorAccumulatePeriod, mAccumulatePeriod); 
-  status |= setIntegerParam(AndorAdcSpeed, 0);
-  status |= setIntegerParam(AndorShutterExTTL, 1);
+  //status |= setIntegerParam(AndorAdcSpeed, 0);
+  //status |= setIntegerParam(AndorShutterExTTL, 1);
   status |= setIntegerParam(AndorShutterMode, AShutterAuto);
   status |= setDoubleParam(ADShutterOpenDelay, 0.);
   status |= setDoubleParam(ADShutterCloseDelay, 0.);
@@ -256,15 +263,16 @@ AndorCCD::AndorCCD(const char *portName, int maxBuffers, size_t maxMemory,
   /// setupPreAmpGains();
   status |= setupShutter(-1);
 
+  setStringParam(AndorMessage, "Defaults Set.");
   callParamCallbacks();
 
   /* Send a signal to the poller task which will make it do a poll, and switch to the fast poll rate */
   epicsEventSignal(statusEvent);
 
-  if (status) {
-    printf("%s:%s: unable to set camera parameters\n", driverName, functionName);
-    return;
-  }
+//  if (status) {
+//    printf("%s:%s: unable to set camera parameters\n", driverName, functionName);
+//    return;
+//  }
 
   //Define the polling periods for the status thread.
   mPollingPeriod = 0.2; //seconds
@@ -342,6 +350,7 @@ asynStatus AndorCCD::readEnum(asynUser *pasynUser, char *strings[], int values[]
   int function = pasynUser->reason;
   int i;
 
+#if 0
   if (function == AndorAdcSpeed) {
     for (i=0; ((i<mNumADCSpeeds) && (i<(int)nElements)); i++) {
       if (strings[i]) free(strings[i]);
@@ -362,9 +371,14 @@ asynStatus AndorCCD::readEnum(asynUser *pasynUser, char *strings[], int values[]
     *nIn = 0;
     return asynError;
   }
+  
+#endif
+  
   *nIn = i;
   return asynSuccess;   
 }
+
+
 
 /// YF removed void AndorCCD::setupADCSpeeds()
 
@@ -390,7 +404,7 @@ void AndorCCD::report(FILE *fp, int details)
   unsigned int uIntParam5;
   unsigned int uIntParam6;
   AndorCapabilities capabilities;
-  AndorADCSpeed_t *pSpeed;
+  ///AndorADCSpeed_t *pSpeed;
   static const char *functionName = "report";
 
   fprintf(fp, "Andor CCD port=%s\n", this->portName);
@@ -517,8 +531,8 @@ asynStatus AndorCCD::writeInt32(asynUser *pasynUser, epicsInt32 value)
              (function == ADBinX)         || (function == ADBinY)      ||
              (function == ADMinX)         || (function == ADMinY)      ||
              (function == ADSizeX)        || (function == ADSizeY)     ||
-             (function == ADTriggerMode)                               || 
-             (function == AndorAdcSpeed)) {
+             (function == ADTriggerMode)  )
+             {
       status = setupAcquisition();
       // YF TODO  if (function == AndorAdcSpeed) setupPreAmpGains();
       if (status != asynSuccess) setIntegerParam(function, oldValue);
@@ -546,8 +560,7 @@ asynStatus AndorCCD::writeInt32(asynUser *pasynUser, epicsInt32 value)
     else if (function == ADShutterControl) {
       status = setupShutter(value);
     }
-    else if ((function == AndorShutterMode) ||
-             (function == AndorShutterExTTL)) {
+    else if (function == AndorShutterMode) {
       status = setupShutter(-1);
     }
     else {
@@ -682,7 +695,6 @@ asynStatus AndorCCD::setupShutter(int command)
 {
   double dTemp;
   int openTime, closeTime;
-  int shutterExTTL;
   int shutterMode;
   asynStatus status=asynSuccess;
   static const char *functionName = "setupShutter";
@@ -692,8 +704,6 @@ asynStatus AndorCCD::setupShutter(int command)
   openTime = (int)(dTemp * 1000.);
   getDoubleParam(ADShutterCloseDelay, &dTemp);
   closeTime = (int)(dTemp * 1000.);
-  getIntegerParam(AndorShutterMode, &shutterMode);
-  getIntegerParam(AndorShutterExTTL, &shutterExTTL);
   
   if (command == ADShutterClosed) {
     shutterMode = AShutterClose;
@@ -707,18 +717,6 @@ asynStatus AndorCCD::setupShutter(int command)
     // will do correct thing, i.e. auto or open depending shutterMode
   }
 
-  try {
-    asynPrint(this->pasynUserSelf, ASYN_TRACE_FLOW, 
-      "%s:%s:, SetShutter(%d,%d,%d,%d)\n", 
-      driverName, functionName, shutterExTTL, shutterMode, closeTime, openTime);
-    // YF TODO checkStatus(SetShutter(shutterExTTL, shutterMode, closeTime, openTime)); 
-
-  } catch (const std::string &e) {
-    asynPrint(pasynUserSelf, ASYN_TRACE_ERROR,
-      "%s:%s: %s\n",
-      driverName, functionName, e.c_str());
-    status = asynError;
-  }
   return status;
 }
 
@@ -919,13 +917,13 @@ asynStatus AndorCCD::setupAcquisition()
   int numExposures;
   int numImages;
   int imageMode;
-  int adcSpeed;
+  ///int adcSpeed;
   int triggerMode;
   int binX, binY, minX, minY, sizeX, sizeY, maxSizeX, maxSizeY;
   float acquireTimeAct, acquirePeriodAct, accumulatePeriodAct;
   int FKmode = 4;
   int FKOffset;
-  AndorADCSpeed_t *pSpeed;
+  // AndorADCSpeed_t *pSpeed;
   static const char *functionName = "setupAcquisition";
   
   getIntegerParam(ADImageMode, &imageMode);
@@ -975,8 +973,8 @@ asynStatus AndorCCD::setupAcquisition()
   // Note: we do triggerMode and adcChannel in this function because they change
   // the computed actual AcquirePeriod and AccumulatePeriod
   getIntegerParam(ADTriggerMode, &triggerMode);
-  getIntegerParam(AndorAdcSpeed, &adcSpeed);
-  pSpeed = &mADCSpeeds[adcSpeed];
+  ///getIntegerParam(AndorAdcSpeed, &adcSpeed);
+  ///pSpeed = &mADCSpeeds[adcSpeed];
   
   // Unfortunately there does not seem to be a way to query the Andor SDK 
   // for the actual size of the image, so we must compute it.
@@ -1163,7 +1161,7 @@ void AndorCCD::dataTask(void)
     //Sanity check that main thread thinks we are acquiring data
     if (mAcquiringData) {
       try {
-        ///status = setupAcquisition();
+        status = setupAcquisition();
         ///if (status != asynSuccess) continue;
         asynPrint(this->pasynUserSelf, ASYN_TRACE_FLOW, 
           "%s:%s:, StartAcquisition()\n", 
@@ -1232,12 +1230,31 @@ void AndorCCD::dataTask(void)
           numImagesCounter++;
           setIntegerParam(ADNumImagesCounter, numImagesCounter);
           // If array callbacks are enabled then read data into NDArray, do callbacks
+          // YF
+          arrayCallbacks = 1; // kick it.
+          
           if (arrayCallbacks) {
             epicsTimeGetCurrent(&startTime);
             // Allocate an NDArray
-            dims[0] = sizeX;
-            dims[1] = sizeY;
+            //dims[0] = sizeX; // why zero?!
+            //dims[1] = sizeY;
+            
+            dims[0] = CIN_DATA_FRAME_WIDTH;
+            dims[1] = CIN_DATA_FRAME_HEIGHT;
+            dataType = NDUInt16; // kick it.
             pArray = this->pNDArrayPool->alloc(nDims, dims, dataType, 0, NULL);
+            
+            
+            // DEBUG {
+               printf("***1***\n"); 
+               printf("nDims%d,   ", nDims);
+               if (dataType == NDUInt32) { printf("dataType:NDUInt32,  "); }
+               if (dataType == NDUInt16) { printf("dataType:NDUInt16,  "); }
+               printf("\n");
+               printf("sizeX, sizeY %u, %u\n", sizeX, sizeY);
+            // }
+            
+            
             
             // COPY the data from FIFO to NDArrayPool.  Is copy necessary?
             //
@@ -1246,6 +1263,8 @@ void AndorCCD::dataTask(void)
             //
             //
 
+            printf("***2***\n"); // DEBUG
+            
             setIntegerParam(NDArraySize, sizeX * sizeY * sizeof(uint16_t));
             // Read the oldest array
             // Is there still an image available?
@@ -1281,9 +1300,15 @@ void AndorCCD::dataTask(void)
             asynPrint(this->pasynUserSelf, ASYN_TRACE_FLOW, 
                  "%s:%s:, calling array callbacks\n", 
                  driverName, functionName);
+                 
+            printf("***3***\n"); // DEBUG
+                 
+                 
             doCallbacksGenericPointer(pArray, NDArrayData, 0);
             this->lock();
             pArray->release();
+            
+            
           }
           // Save data if autosave is enabled
           ///if (autoSave) this->saveDataFrame(i);
@@ -1296,6 +1321,15 @@ void AndorCCD::dataTask(void)
         errorString = const_cast<char *>(e.c_str());
         setStringParam(AndorMessage, errorString);
       }
+      
+      
+      
+      
+      // YF Safe place to release frame buffer
+      
+       printf("***4***\n"); // DEBUG
+      cin_data_release_frame(1);
+       printf("***5***\n"); // DEBUG
     } // while acquiring
       
     //Now clear main thread flag
