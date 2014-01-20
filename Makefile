@@ -15,7 +15,7 @@ include $(TOP)/configure/CONFIG
 
 LDFLAGS+=-L../lib 
 LIBRARY_IOC = andorCCD
-LIB_SRCS += andorCCD.cpp
+LIB_SRCS += andorCCD.cpp cin_power.c cin_api.c
 
 #==================================
 
@@ -26,6 +26,7 @@ PROD_IOC  += $(PROD_NAME)
 DBD += $(PROD_NAME).dbd
 $(PROD_NAME)_DBD += andorCCDSupport.dbd
 DBD += andorCCDSupport.dbd
+
 
 PROD_SRCS += andorCCDApp_registerRecordDeviceDriver.cpp andorCCDAppMain.cpp
 

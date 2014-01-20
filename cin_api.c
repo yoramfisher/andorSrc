@@ -7,7 +7,7 @@
 
 #include "cin.h"
 #include "cin_register_map.h"
-#include "cin_api.h"
+// #include "cin_api.h"
 
 /**************************** UDP Socket ******************************/
 static int cin_set_sock_timeout(struct cin_port* cp) {

@@ -38,6 +38,10 @@ extern "C" {
 #define AndorPreAmpGainString              "ANDOR_PREAMP_GAIN"
 #define AndorAdcSpeedString                "ANDOR_ADC_SPEED"
 
+#define FCCDSetBiasString                  "FCCD_SETBIAS"
+#define FCCDSetClocksString                "FCCD_SETCLOCKS"
+
+
 typedef struct {
   int ADCIndex;
   int AmpIndex;
@@ -86,7 +90,9 @@ class AndorCCD : public ADDriver {
   int AndorAccumulatePeriod;
   int AndorPreAmpGain;
   int AndorAdcSpeed;
-  #define LAST_ANDOR_PARAM AndorAdcSpeed
+  int FCCDSetBias;
+  int FCCDSetClocks;
+  #define LAST_ANDOR_PARAM FCCDSetClocks
 
  private:
 
@@ -115,11 +121,9 @@ class AndorCCD : public ADDriver {
    * List of trigger modes.
    */
   static const epicsUInt32 ATInternal;
-  static const epicsUInt32 ATExternal;
-  static const epicsUInt32 ATExternalStart;
-  static const epicsUInt32 ATExternalExposure;
-  static const epicsUInt32 ATExternalFVB;
-  static const epicsUInt32 ATSoftware;
+  static const epicsUInt32 ATExternal1;
+  static const epicsUInt32 ATExternal2;
+  static const epicsUInt32 ATExternal1or2;
 
   /**
    * List of detector status states

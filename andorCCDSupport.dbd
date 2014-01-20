@@ -1,2 +1,3 @@
 registrar("andorCCDRegister")
 registrar(cin_power_upRegister)
+registrar(cin_power_downRegister)

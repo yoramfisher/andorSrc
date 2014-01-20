@@ -1,12 +1,10 @@
 /**
+ * FastCCD.cpp
+ * derived from andorCCD.cpp
  * Area Detector driver for the Andor CCD.
  *
- * @author Matthew Pearson
- * @date June 2009
- *
- * Updated Dec 2011 for Asyn 4-17 and areaDetector 1-7 
- *
- * Major updates to get callbacks working, etc. by Mark Rivers Feb. 2011
+ * Ver
+ * 0.1 YF 1/20/14
  *
  */
 
@@ -30,6 +28,18 @@
 
 #include "andorCCD.h"
 
+// Function prototypes for cin_power.c
+extern "C" {
+int cin_power_up();
+int cin_power_down();
+int CIN_set_bias(int val);
+int CIN_set_clocks(int val);
+int CIN_set_trigger(int val);
+// TODO  int CIN_get_trigger_status(); /* need to override enum?? */
+int CIN_set_exposure_time(float e_time);
+int CIN_set_trigger_delay(float t_time);
+int CIN_set_cycle_time(float c_time);
+}
 
 
 static const char *driverName = "andorCCD";
@@ -46,11 +56,9 @@ const epicsUInt32 AndorCCD::AARunTillAbort = 5;
 const epicsUInt32 AndorCCD::AATimeDelayedInt = 9;
 
 const epicsUInt32 AndorCCD::ATInternal = 0;
-const epicsUInt32 AndorCCD::ATExternal = 1;
-const epicsUInt32 AndorCCD::ATExternalStart = 6;
-const epicsUInt32 AndorCCD::ATExternalExposure = 7;
-const epicsUInt32 AndorCCD::ATExternalFVB = 9;
-const epicsUInt32 AndorCCD::ATSoftware = 10;
+const epicsUInt32 AndorCCD::ATExternal1 = 1;
+const epicsUInt32 AndorCCD::ATExternal2 = 2;
+const epicsUInt32 AndorCCD::ATExternal1or2 = 3;
 
 const epicsUInt32 AndorCCD::ASIdle = DRV_IDLE;
 const epicsUInt32 AndorCCD::ASTempCycle = DRV_TEMPCYCLE;
@@ -172,6 +180,10 @@ AndorCCD::AndorCCD(const char *portName, int maxBuffers, size_t maxMemory,
   createParam(AndorPreAmpGainString,              asynParamInt32, &AndorPreAmpGain);
   createParam(AndorAdcSpeedString,                asynParamInt32, &AndorAdcSpeed);
 
+  // YF Custom PV Records
+  createParam(FCCDSetBiasString,                  asynParamInt32, &FCCDSetBias);
+  createParam(FCCDSetClocksString,                asynParamInt32, &FCCDSetClocks);
+  
   // Create the epicsEvent for signaling to the status task when parameters should have changed.
   // This will cause it to do a poll immediately, rather than wait for the poll time period.
   this->statusEvent = epicsEventMustCreate(epicsEventEmpty);
@@ -258,6 +270,10 @@ AndorCCD::AndorCCD(const char *portName, int maxBuffers, size_t maxMemory,
   status |= setIntegerParam(AndorShutterMode, AShutterAuto);
   status |= setDoubleParam(ADShutterOpenDelay, 0.);
   status |= setDoubleParam(ADShutterCloseDelay, 0.);
+  
+  // YF Set Default Bias off.
+  status |= setIntegerParam(FCCDSetBias, 0);
+  
 
   /// setupADCSpeeds();
   /// setupPreAmpGains();
@@ -352,6 +368,9 @@ asynStatus AndorCCD::readEnum(asynUser *pasynUser, char *strings[], int values[]
   int function = pasynUser->reason;
   int i;
 
+  // YF debug
+  printf("***DEBUG: readEnum function %d\n", function);
+  
 #if 0
   if (function == AndorAdcSpeed) {
     for (i=0; ((i<mNumADCSpeeds) && (i<(int)nElements)); i++) {
@@ -376,8 +395,8 @@ asynStatus AndorCCD::readEnum(asynUser *pasynUser, char *strings[], int values[]
   
 #endif
   
-  *nIn = i;
-  return asynSuccess;   
+  *nIn = 0; // i;
+  return asynError; // asynSuccess;   
 }
 
 
@@ -532,8 +551,7 @@ asynStatus AndorCCD::writeInt32(asynUser *pasynUser, epicsInt32 value)
              (function == ADImageMode)                                 ||
              (function == ADBinX)         || (function == ADBinY)      ||
              (function == ADMinX)         || (function == ADMinY)      ||
-             (function == ADSizeX)        || (function == ADSizeY)     ||
-             (function == ADTriggerMode)  )
+             (function == ADSizeX)        || (function == ADSizeY)  )
              {
       status = setupAcquisition();
       // YF TODO  if (function == AndorAdcSpeed) setupPreAmpGains();
@@ -565,6 +583,21 @@ asynStatus AndorCCD::writeInt32(asynUser *pasynUser, epicsInt32 value)
     else if (function == AndorShutterMode) {
       status = setupShutter(-1);
     }
+    
+    else if (function == FCCDSetBias) {
+         CIN_set_bias(value);
+    }
+    else if (function == FCCDSetClocks) {
+         CIN_set_clocks(value);
+    }
+    else if (function == ADTriggerMode) {
+         CIN_set_trigger(value);
+    }
+    
+
+    
+    
+    
     else {
       status = ADDriver::writeInt32(pasynUser, value);
     }
@@ -615,12 +648,16 @@ asynStatus AndorCCD::writeFloat64(asynUser *pasynUser, epicsFloat64 value)
     status = setDoubleParam(function, value);
 
     if (function == ADAcquireTime) {
-      mAcquireTime = (float)value;  
-      status = setupAcquisition();
+      mAcquireTime = (float)value; 
+
+      CIN_set_exposure_time(mAcquireTime);
+      status = asynSuccess;
+      // status = setupAcquisition();
     }
     else if (function == ADAcquirePeriod) {
       mAcquirePeriod = (float)value;  
-      status = setupAcquisition();
+      CIN_set_cycle_time(mAcquirePeriod);
+      status = asynSuccess;
     }
     else if (function == ADGain) {
       try {
@@ -665,8 +702,13 @@ asynStatus AndorCCD::writeFloat64(asynUser *pasynUser, epicsFloat64 value)
         status = asynError;
       }
     }
-    else if ((function == ADShutterOpenDelay) ||
-             (function == ADShutterCloseDelay)) {             
+    
+    else if (function == ADShutterOpenDelay) 
+    {
+      float fVal = (float)value;
+      CIN_set_trigger_delay(fVal);
+    }
+    else if (function == ADShutterCloseDelay) {             
       status = setupShutter(-1);
     }
       
@@ -819,8 +861,8 @@ unsigned int AndorCCD::checkStatus(unsigned int returnStatus)
 void AndorCCD::statusTask(void)
 {
   int value = 0;
-  float temperature;
-  unsigned int uvalue = 0;
+  // float temperature;
+  // unsigned int uvalue = 0;
   unsigned int status = 0;
   double timeout = 0.0;
   unsigned int forcedFastPolls = 0;
@@ -922,11 +964,11 @@ asynStatus AndorCCD::setupAcquisition()
   ///int adcSpeed;
   int triggerMode;
   int binX, binY, minX, minY, sizeX, sizeY, maxSizeX, maxSizeY;
-  float acquireTimeAct, acquirePeriodAct, accumulatePeriodAct;
+  //float acquireTimeAct, acquirePeriodAct, accumulatePeriodAct;
   int FKmode = 4;
-  int FKOffset;
+  //int FKOffset;
   // AndorADCSpeed_t *pSpeed;
-  static const char *functionName = "setupAcquisition";
+  //static const char *functionName = "setupAcquisition";
   
   getIntegerParam(ADImageMode, &imageMode);
   getIntegerParam(ADNumExposures, &numExposures);
@@ -1124,7 +1166,7 @@ asynStatus AndorCCD::setupAcquisition()
 void AndorCCD::dataTask(void)
 {
   epicsUInt32 status = 0;
-  int acquireStatus;
+  // int acquireStatus;
   char *errorString = NULL;
   int acquiring = 0;
   epicsInt32 numImagesCounter;
@@ -1134,8 +1176,8 @@ void AndorCCD::dataTask(void)
   epicsInt32 sizeX, sizeY;
   NDDataType_t dataType;
   int itemp;
-  at_32 firstImage, lastImage;
-  at_32 validFirst, validLast;
+  //at_32 firstImage, lastImage;
+  //at_32 validFirst, validLast;
   size_t dims[2];
   int nDims = 2;
   int i;
@@ -1391,12 +1433,22 @@ int andorCCDConfig(const char *portName, int maxBuffers, size_t maxMemory,
 }
 
 
-/** IOC shell configuration command for cin power up
-  * 
-  */
-int cin_power_up(const char *strParam)
+// 
+// IOC shell configuration command for cin power up
+//  
+  int FCCD_cin_power_up(const char *strParam)
 {
    printf("cin_power_up: %s\n", strParam);
+   cin_power_up(); // defined in cin_power.c
+   return (0);
+}
+
+// 
+// IOC shell configuration command for cin power down
+//  
+int FCCD_cin_power_down(const char *strParam)
+{
+   cin_power_down(); // defined in cin_power.c
    return (0);
 }
 
@@ -1435,12 +1487,18 @@ static void andorCCDRegister(void)
 /* Information needed by iocsh */
 static const iocshArg     cin_power_upArg0 = {"strParam", iocshArgString};
 static const iocshArg    *cin_power_upArgs[] = {&cin_power_upArg0};
-static const iocshFuncDef cin_power_upFuncDef = {"cin_power_up", 1, cin_power_upArgs};
+static const iocshFuncDef cin_power_upFuncDef = {"FCCD_cin_power_up", 1, cin_power_upArgs};
+static const iocshFuncDef cin_power_downFuncDef = {"FCCD_cin_power_down", 1, cin_power_upArgs};
 
 
 static void cin_power_upCallFunc(const iocshArgBuf *args)
 {
-    cin_power_up(args[0].sval);
+    FCCD_cin_power_up(args[0].sval);
+}
+
+static void cin_power_downCallFunc(const iocshArgBuf *args)
+{
+    FCCD_cin_power_down(args[0].sval);
 }
 
 
@@ -1449,7 +1507,14 @@ static void cin_power_upRegister(void)
     iocshRegister(&cin_power_upFuncDef, cin_power_upCallFunc);
 }
 
+static void cin_power_downRegister(void)
+{
+    iocshRegister(&cin_power_downFuncDef, cin_power_downCallFunc);
+}
+
 epicsExportRegistrar(andorCCDRegister);
 epicsExportRegistrar(cin_power_upRegister);
+epicsExportRegistrar(cin_power_downRegister);
+
 } // extern "C"
 
