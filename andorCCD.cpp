@@ -321,6 +321,8 @@ AndorCCD::~AndorCCD()
     this->lock();
     // YF TODO checkStatus(FreeInternalMemory());
     // YF TODO checkStatus(ShutDown());
+    // TODO cin_data_stop_threads()
+    // TODO cin_data_wait_for_threads();
     printf("Camera shutting down as part of IOC exit.\n");
     this->unlock();
   } catch (const std::string &e) {
@@ -1389,6 +1391,15 @@ int andorCCDConfig(const char *portName, int maxBuffers, size_t maxMemory,
 }
 
 
+/** IOC shell configuration command for cin power up
+  * 
+  */
+int cin_power_up(const char *strParam)
+{
+   printf("cin_power_up: %s\n", strParam);
+   return (0);
+}
+
 /* Code for iocsh registration */
 
 /* andorCCDConfig */
@@ -1418,5 +1429,27 @@ static void andorCCDRegister(void)
     iocshRegister(&configAndorCCD, configAndorCCDCallFunc);
 }
 
-epicsExportRegistrar(andorCCDRegister);
+
+
+
+/* Information needed by iocsh */
+static const iocshArg     cin_power_upArg0 = {"strParam", iocshArgString};
+static const iocshArg    *cin_power_upArgs[] = {&cin_power_upArg0};
+static const iocshFuncDef cin_power_upFuncDef = {"cin_power_up", 1, cin_power_upArgs};
+
+
+static void cin_power_upCallFunc(const iocshArgBuf *args)
+{
+    cin_power_up(args[0].sval);
 }
+
+
+static void cin_power_upRegister(void)
+{
+    iocshRegister(&cin_power_upFuncDef, cin_power_upCallFunc);
+}
+
+epicsExportRegistrar(andorCCDRegister);
+epicsExportRegistrar(cin_power_upRegister);
+} // extern "C"
+
