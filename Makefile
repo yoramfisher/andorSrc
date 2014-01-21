@@ -15,7 +15,7 @@ include $(TOP)/configure/CONFIG
 
 LDFLAGS+=-L../lib 
 LIBRARY_IOC = andorCCD
-LIB_SRCS += andorCCD.cpp cin_power.c cin_api.c
+LIB_SRCS += andorCCD.cpp cin_power.c
 
 #==================================
 
