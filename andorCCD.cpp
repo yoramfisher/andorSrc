@@ -35,7 +35,7 @@ int cin_power_down();
 int CIN_set_bias(int val);
 int CIN_set_clocks(int val);
 int CIN_set_trigger(int val);
-// TODO  int CIN_get_trigger_status(); /* need to override enum?? */
+int CIN_get_trigger_status(); 
 int CIN_set_exposure_time(float e_time);
 int CIN_set_trigger_delay(float t_time);
 int CIN_set_cycle_time(float c_time);
@@ -395,8 +395,8 @@ asynStatus AndorCCD::readEnum(asynUser *pasynUser, char *strings[], int values[]
   
 #endif
   
-  *nIn = 0; // i;
-  return asynError; // asynSuccess;   
+   return ADDriver::readEnum(pasynUser, strings, values, severities,nElements, nIn );
+  
 }
 
 
@@ -491,6 +491,8 @@ void AndorCCD::report(FILE *fp, int details)
   // Call the base class method
   ADDriver::report(fp, details);
 }
+
+
 
 
 /** Called when asyn clients call pasynInt32->write().
@@ -591,7 +593,13 @@ asynStatus AndorCCD::writeInt32(asynUser *pasynUser, epicsInt32 value)
          CIN_set_clocks(value);
     }
     else if (function == ADTriggerMode) {
+         // After set value, read back value
+         int gts;
          CIN_set_trigger(value);
+         
+         gts =  CIN_get_trigger_status();
+         setIntegerParam(ADTriggerMode, gts);
+         // callParamCallbacks();
     }
     
 
@@ -965,7 +973,7 @@ asynStatus AndorCCD::setupAcquisition()
   int triggerMode;
   int binX, binY, minX, minY, sizeX, sizeY, maxSizeX, maxSizeY;
   //float acquireTimeAct, acquirePeriodAct, accumulatePeriodAct;
-  int FKmode = 4;
+  // int FKmode = 4;
   //int FKOffset;
   // AndorADCSpeed_t *pSpeed;
   //static const char *functionName = "setupAcquisition";
@@ -1169,6 +1177,8 @@ void AndorCCD::dataTask(void)
   // int acquireStatus;
   char *errorString = NULL;
   int acquiring = 0;
+  int imageMode;
+  epicsInt32 numImages;
   epicsInt32 numImagesCounter;
   epicsInt32 numExposuresCounter;
   epicsInt32 imageCounter;
@@ -1180,7 +1190,7 @@ void AndorCCD::dataTask(void)
   //at_32 validFirst, validLast;
   size_t dims[2];
   int nDims = 2;
-  int i;
+  // int i;
   epicsTimeStamp startTime;
   NDArray *pArray;
   int autoSave;
@@ -1225,9 +1235,13 @@ void AndorCCD::dataTask(void)
       getIntegerParam(NDArrayCallbacks, &arrayCallbacks);
       getIntegerParam(NDArraySizeX, &sizeX);
       getIntegerParam(NDArraySizeY, &sizeY);
+      getIntegerParam(ADNumImages, &numImages);
       // Reset the counters
       setIntegerParam(ADNumImagesCounter, 0);
       setIntegerParam(ADNumExposuresCounter, 0);
+      getIntegerParam(ADImageMode, &imageMode);
+      setIntegerParam(ADStatus, 1 /*"Acquire", def in ADBase.template */); 
+      
       callParamCallbacks();
     } else {
       asynPrint(this->pasynUserSelf, ASYN_TRACE_ERROR, 
@@ -1236,7 +1250,7 @@ void AndorCCD::dataTask(void)
       acquiring = 0;
     }
 
-    while (acquiring) {
+    while (acquiring && mAcquiringData) {
       try {
         // YF TODO checkStatus(GetStatus(&acquireStatus));
         ///asynPrint(this->pasynUserSelf, ASYN_TRACE_FLOW, 
@@ -1267,7 +1281,7 @@ void AndorCCD::dataTask(void)
         ///  driverName, functionName, (long)firstImage, (long)lastImage);
         ///for (i=firstImage; i<=lastImage; i++) {
         ///  // Update counters
-        ///  getIntegerParam(NDArrayCounter, &imageCounter);
+          getIntegerParam(NDArrayCounter, &imageCounter);
           imageCounter++;
           setIntegerParam(NDArrayCounter, imageCounter);;
           getIntegerParam(ADNumImagesCounter, &numImagesCounter);
@@ -1286,74 +1300,88 @@ void AndorCCD::dataTask(void)
             dims[0] = CIN_DATA_FRAME_WIDTH;
             dims[1] = CIN_DATA_FRAME_HEIGHT;
             dataType = NDUInt16; // kick it.
-            pArray = this->pNDArrayPool->alloc(nDims, dims, dataType, 0, NULL);
+            //pArray = this->pNDArrayPool->alloc(nDims, dims, dataType, 0, NULL);
+            pArray = this->pNDArrayPool->alloc(nDims, dims, dataType, sizeof(uint16_t)*dims[0]*dims[1], m_frame->data);
+            if (pArray)
+            {
+               
             
             
             // DEBUG {
-               printf("***1***\n"); 
-               printf("nDims%d,   ", nDims);
-               if (dataType == NDUInt32) { printf("dataType:NDUInt32,  "); }
-               if (dataType == NDUInt16) { printf("dataType:NDUInt16,  "); }
-               printf("\n");
-               printf("sizeX, sizeY %u, %u\n", sizeX, sizeY);
+               //printf("***1***\n"); 
+               //printf("nDims%d,   ", nDims);
+               //if (dataType == NDUInt32) { printf("dataType:NDUInt32,  "); }
+               //if (dataType == NDUInt16) { printf("dataType:NDUInt16,  "); }
+               //printf("\n");
+               //printf("sizeX, sizeY %u, %u\n", sizeX, sizeY);
             // }
             
             
             
-            // COPY the data from FIFO to NDArrayPool.  Is copy necessary?
-            //
-            //
-            memcpy(pArray->pData /*dest*/, m_frame->data /*src*/, sizeof(uint16_t)*sizeX*sizeY);
-            //
-            //
+               // COPY the data from FIFO to NDArrayPool.  Is copy necessary?
+               //
+               //
+               //memcpy(pArray->pData /*dest*/, m_frame->data /*src*/, sizeof(uint16_t)*sizeX*sizeY);
+               //
+               //
 
-            printf("***2***\n"); // DEBUG
-            
-            setIntegerParam(NDArraySize, sizeX * sizeY * sizeof(uint16_t));
-            // Read the oldest array
-            // Is there still an image available?
-            // YF TODO  status = GetNumberNewImages(&firstImage, &lastImage);
-            ///asynPrint(this->pasynUserSelf, ASYN_TRACE_FLOW,
-            ///  "%s:%s:, GetNumberNewImages, status=%d, firstImage=%ld, lastImage=%ld\n", 
-            ///  driverName, functionName, status, (long)firstImage, (long)lastImage);
-            // if (dataType == NDUInt32) {
-              // asynPrint(this->pasynUserSelf, ASYN_TRACE_FLOW, 
-                // "%s:%s:, GetImages(%d, %d, %p, %d, %p, %p)\n", 
-                // driverName, functionName, i, i, pArray->pData, sizeX*sizeY, &validFirst, &validLast);
-             // YF TODO  checkStatus(GetImages(i, i, (at_32*)pArray->pData, 
-             //                      sizeX*sizeY, &validFirst, &validLast));
-              // setIntegerParam(NDArraySize, sizeX * sizeY * sizeof(epicsUInt32));
-            // }
-            // else if (dataType == NDUInt16) {
-              // asynPrint(this->pasynUserSelf, ASYN_TRACE_FLOW, 
-                // "%s:%s:, GetImages16(%d, %d, %p, %d, %p, %p)\n", 
-                // driverName, functionName, i, i, pArray->pData, sizeX*sizeY, &validFirst, &validLast);
-             // YF TODO checkStatus(GetImages16(i, i, (epicsUInt16*)pArray->pData, 
-              //                       sizeX*sizeY, &validFirst, &validLast));
-              // setIntegerParam(NDArraySize, sizeX * sizeY * sizeof(epicsUInt16));
-            // }
-            /* Put the frame number and time stamp into the buffer */
-            pArray->uniqueId = imageCounter;
-            pArray->timeStamp = startTime.secPastEpoch + startTime.nsec / 1.e9;
-            /* Get any attributes that have been defined for this driver */        
-            this->getAttributes(pArray->pAttributeList);
-            /* Call the NDArray callback */
-            /* Must release the lock here, or we can get into a deadlock, because we can
-             * block on the plugin lock, and the plugin can be calling us */
-            this->unlock();
-            asynPrint(this->pasynUserSelf, ASYN_TRACE_FLOW, 
-                 "%s:%s:, calling array callbacks\n", 
-                 driverName, functionName);
+               // Expect these to point to the same buffer
+               // printf("pArray->pData:%x, mframe->data:%x\n", pArray->pData, m_frame->data); // DEBUG
+               // YUP.
+               
+               setIntegerParam(NDArraySize, sizeX * sizeY * sizeof(uint16_t));
+               // Read the oldest array
+               // Is there still an image available?
+               // YF TODO  status = GetNumberNewImages(&firstImage, &lastImage);
+               ///asynPrint(this->pasynUserSelf, ASYN_TRACE_FLOW,
+               ///  "%s:%s:, GetNumberNewImages, status=%d, firstImage=%ld, lastImage=%ld\n", 
+               ///  driverName, functionName, status, (long)firstImage, (long)lastImage);
+               // if (dataType == NDUInt32) {
+                 // asynPrint(this->pasynUserSelf, ASYN_TRACE_FLOW, 
+                   // "%s:%s:, GetImages(%d, %d, %p, %d, %p, %p)\n", 
+                   // driverName, functionName, i, i, pArray->pData, sizeX*sizeY, &validFirst, &validLast);
+                // YF TODO  checkStatus(GetImages(i, i, (at_32*)pArray->pData, 
+                //                      sizeX*sizeY, &validFirst, &validLast));
+                 // setIntegerParam(NDArraySize, sizeX * sizeY * sizeof(epicsUInt32));
+               // }
+               // else if (dataType == NDUInt16) {
+                 // asynPrint(this->pasynUserSelf, ASYN_TRACE_FLOW, 
+                   // "%s:%s:, GetImages16(%d, %d, %p, %d, %p, %p)\n", 
+                   // driverName, functionName, i, i, pArray->pData, sizeX*sizeY, &validFirst, &validLast);
+                // YF TODO checkStatus(GetImages16(i, i, (epicsUInt16*)pArray->pData, 
+                 //                       sizeX*sizeY, &validFirst, &validLast));
+                 // setIntegerParam(NDArraySize, sizeX * sizeY * sizeof(epicsUInt16));
+               // }
+               /* Put the frame number and time stamp into the buffer */
+               pArray->uniqueId = imageCounter;
+               pArray->timeStamp = startTime.secPastEpoch + startTime.nsec / 1.e9;
+               /* Get any attributes that have been defined for this driver */        
+               this->getAttributes(pArray->pAttributeList);
+               /* Call the NDArray callback */
+               /* Must release the lock here, or we can get into a deadlock, because we can
+                * block on the plugin lock, and the plugin can be calling us */
+               this->unlock();
+               asynPrint(this->pasynUserSelf, ASYN_TRACE_FLOW, 
+                    "%s:%s:, calling array callbacks\n", 
+                    driverName, functionName);
+                    
+               //printf("***3***\n"); // DEBUG
                  
-            printf("***3***\n"); // DEBUG
                  
-                 
-            doCallbacksGenericPointer(pArray, NDArrayData, 0);
-            this->lock();
-            pArray->release();
+               doCallbacksGenericPointer(pArray, NDArrayData, 0);
+               this->lock();
+               pArray->release();
+               // Calling release does not free any memory, but allows
+               // NDPoolArray to reuse object
+               // 
             
-            
-          }
+            }
+            else
+            {
+               // allocate error!
+               printf("Out of memory in data task!\n");
+            }
+          } // if (arrayCallbacks) {
           // Save data if autosave is enabled
           ///if (autoSave) this->saveDataFrame(i);
           callParamCallbacks();
@@ -1371,15 +1399,23 @@ void AndorCCD::dataTask(void)
       
       // YF Safe place to release frame buffer
       
-       printf("***4***\n"); // DEBUG
+      //printf("***4***\n"); // DEBUG
       cin_data_release_frame(1);
-       printf("***5***\n"); // DEBUG
+      //printf("***5***\n"); // DEBUG
+       
+      /* See if acquisition is done */
+      if ((imageMode == ADImageSingle) ||
+         ((imageMode == ADImageMultiple) &&
+          (numImagesCounter >= numImages))) {
+          
+            acquiring = 0;
+      }
     } // while acquiring
       
     //Now clear main thread flag
     mAcquiringData = 0;
     setIntegerParam(ADAcquire, 0);
-    //setIntegerParam(ADStatus, 0); //Dont set this as the status thread sets it.
+    setIntegerParam(ADStatus, 0); 
 
     /* Call the callbacks to update any changes */
     callParamCallbacks();

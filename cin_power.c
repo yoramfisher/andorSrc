@@ -21,6 +21,7 @@ LOCAL char cin_bias_config[1024];
 LOCAL struct cin_port cp[2];
 int cin_power_up (){
 
+   int ret1, ret2, ret3;
    // debug
    printf("***cin_power_up\n");
    
@@ -43,13 +44,13 @@ int cin_power_up (){
    cin_load_firmware(&cp[1],cin_fpga_config);        //Load CIN Firmware Configuration
    sleep(3);
 
-   cin_get_cfg_fpga_status(&cp[0]);                  //Get CIN FPGA status 
+   ret1 = cin_get_cfg_fpga_status(&cp[0]);                  //Get CIN FPGA status 
    sleep(1);
 
-   cin_set_fclk_125mhz(&cp[0]);                      //Set CIN clocks to 125MHz
+   ret2 = cin_set_fclk_125mhz(&cp[0]);                      //Set CIN clocks to 125MHz
    sleep(1);
 
-   cin_get_fclk_status(&cp[0]);                      //Get CIN clock status 
+   ret3 = cin_get_fclk_status(&cp[0]);                      //Get CIN clock status 
    sleep(1);
 
    cin_fp_on(&cp[0]);                                                                                      //Power ON CIN front Panel
@@ -65,7 +66,7 @@ int cin_power_up (){
    cin_load_config(&cp[0],cin_bias_config);            //Load FCCD bias Configuration
    sleep(3);
    /**********************************************************************/
-   printf("CIN startup complete!!\n");  
+   printf("CIN startup complete!!\nRet Status: %d, %d, %d\n", ret1, ret2, ret3);  
 
 #endif
    return 0;
