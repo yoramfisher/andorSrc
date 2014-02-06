@@ -99,7 +99,8 @@ int AndorCCD::FCCD_Init()
 {
    int ret= 0;
    
-   if (cin_init_data_port(&m_port, "192.168.11.112", 49201, "192.168.11.112", 49203 , 0) )
+//   if (cin_init_data_port(&m_port, "192.168.11.112", 49201, "192.168.11.112", 49203 , 0) )
+	 if (cin_init_data_port(&m_port, "127.0.0.1", 49201, "127.0.0.1", 49202 , 0) )
    // if (cin_init_data_port(&m_port, NULL, 0, NULL, 0, 0))
    {
       printf("cin_init_data_port returned error \n");
