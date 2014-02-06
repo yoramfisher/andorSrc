@@ -7,12 +7,12 @@
 #undef HARDWARE
 #define LOCAL static
 
-LOCAL char fccd_config_dir[]="/home/jaimef/Desktop/FCCD Software Development/FCCD Qt/CINController_BNL_v0.1/config/Startup/";
+LOCAL char fccd_config_dir[]="../cin_config/";
 
-LOCAL char fpga_configfile[]="top_frame_fpga_r1004.bit";
-LOCAL char cin_configfile_waveform[]="waveform_10ms_readout_timing_125MHz_frameStore.txt";
-LOCAL char cin_configfile_fcric[]="ARRA_fcrics_config_x8_11112011.txt";
-LOCAL char cin_configfile_bias[]="bias_setting_lbl_gold2.txt";
+LOCAL char fpga_configfile[]="top_frame_fpga-v1019j.bit";
+LOCAL char cin_configfile_waveform[]="2013_Nov_30-200MHz_CCD_timing.txt";
+LOCAL char cin_configfile_fcric[]="2013_Nov_25-200MHz_fCRIC_timing.txt";
+LOCAL char cin_configfile_bias[]="2013_Nov_05_Bias_Settings.txt";
 
 LOCAL char cin_fpga_config[1024];
 LOCAL char cin_waveform_config[1024];
@@ -21,52 +21,60 @@ LOCAL char cin_bias_config[1024];
 LOCAL struct cin_port cp[2];
 int cin_power_up (){
 
-   int ret1, ret2, ret3;
-   // debug
-   printf("***cin_power_up\n");
+  int ret_fpga,ret_fclk;
    
-#ifdef HARDWARE
+   printf("***cin_power_up\n");// debug
+   
+
    cin_init_ctl_port(&cp[0], 0, 0);
    cin_init_ctl_port(&cp[1], 0,CIN_DATA_CTL_PORT);
-
-
+	 printf("***Control ports initialized\n");// debug
+#ifdef HARDWARE
    sprintf(cin_fpga_config,"%s%s", fccd_config_dir,fpga_configfile);
    sprintf(cin_waveform_config,"%s%s", fccd_config_dir,cin_configfile_waveform);
    sprintf(cin_fcric_config,"%s%s", fccd_config_dir,cin_configfile_fcric);
    sprintf(cin_bias_config,"%s%s", fccd_config_dir,cin_configfile_bias);
 
-   cin_off(&cp[0]);                                                                                        //Power OFF CIN
-   sleep(1);
+  cin_off(&cp[0]);        					//Power OFF CIN
+	sleep(1);
 
-   cin_on(&cp[0]);                                                                                          //Power ON CIN
-   sleep(4);
+	cin_on(&cp[0]);          					//Power ON CIN
+	sleep(4);
+/*	
+	cin_load_firmware(&cp[0],&cp[1],cin_fpga_config);	//Load CIN Firmware Configuration
+	sleep(1);
+*/	
+	ret_fpga=cin_get_cfg_fpga_status(&cp[0]);					//Get CIN FPGA status 
+	sleep(1);
+/*		
+	cin_set_fclk(&cp[0],200); 				//Set CIN clocks to 200MHz
+	sleep(1);													//Included in latest binary
+*/	
+	ret_fclk=cin_get_fclk_status(&cp[0]);						 //Get CIN clock status 
+	sleep(1);
+	
+	cin_fp_on(&cp[0]);      				//Power ON CIN front Panel
+	sleep(3);												//Wait to allow visual check
+																																			 
+/************************* FCCD Configuration **************************/	
 
-   cin_load_firmware(&cp[1],cin_fpga_config);        //Load CIN Firmware Configuration
-   sleep(3);
+	cin_load_config(&cp[0],cin_waveform_config);		//Load FCCD clock configuration
+	sleep(3);
+/*	
+	cin_load_config(&cp[0],cin_fcric_config);		//Load CIN fcric Configuration
+	sleep(3);
+	
+	cin_load_config(&cp[0],cin_bias_config);		//Load FCCD bias Configuration
+	sleep(3);
+*/
+/**********************************************************************/			
+	fprintf(stdout,"\nCIN startup complete!!\n");
 
-   ret1 = cin_get_cfg_fpga_status(&cp[0]);                  //Get CIN FPGA status 
-   sleep(1);
-
-   ret2 = cin_set_fclk_125mhz(&cp[0]);                      //Set CIN clocks to 125MHz
-   sleep(1);
-
-   ret3 = cin_get_fclk_status(&cp[0]);                      //Get CIN clock status 
-   sleep(1);
-
-   cin_fp_on(&cp[0]);                                                                                      //Power ON CIN front Panel
-   sleep(2);                                                                                                                                                //Wait to allow visual check
-                                                                                                                                                                                                                                                                           
-   /************************* FCCD Configuration **************************/        
-   cin_load_config(&cp[0],cin_waveform_config);        //Load FCCD clock configuration
-   sleep(3);
-
-   cin_load_config(&cp[0],cin_fcric_config);           //Load CIN fcric Configuration
-   sleep(3);
-
-   cin_load_config(&cp[0],cin_bias_config);            //Load FCCD bias Configuration
-   sleep(3);
-   /**********************************************************************/
-   printf("CIN startup complete!!\nRet Status: %d, %d, %d\n", ret1, ret2, ret3);  
+	if (ret_fpga==0){fprintf(stdout,"  *FPGA Status: OK\n");}
+	else{fprintf(stdout,"  *FPGA Status: ERROR\n");}
+	
+	if (ret_fclk==0){fprintf(stdout,"  *FCLK Status: OK\n");}
+	else{fprintf(stdout,"  *FCLK Status: ERROR\n");}	
 
 #endif
    return 0;
@@ -87,24 +95,25 @@ int cin_power_down(){
    //cin_init_ctl_port(&cp[1], 0,CIN_DATA_CTL_PORT);
    // But should add a check that cp is valid...
 
-   cin_set_bias(&cp[0],0);                   //Turn OFF camera CCD bias
-   sleep(1);                                                
+   fprintf(stdout,"Turning off clock and bias.......\n");
+	cin_set_bias(&cp[0],0);   	//Turn OFF camera CCD bias
+	sleep(1);						
 
-   cin_set_clocks(&cp[0],0);                //Turn OFF camera CCD bias
-   sleep(1);
+	cin_set_clocks(&cp[0],0);		//Turn OFF camera CCD bias
+	sleep(1);
 
-   cin_fp_off(&cp[0]);                      //Power OFF CIN front Panel
-   sleep(2);        
+	cin_fp_off(&cp[0]);      		//Power OFF CIN front Panel
+	sleep(2);	
 
-   cin_off(&cp[0]);                    //Power OFF CIN
-   sleep(4);
+	cin_off(&cp[0]);          	//Power OFF CIN
+	sleep(4);
 
-   printf("Closing ports.......\n");
-   cin_close_ctl_port(&cp[0]);       //Close Control port
-   cin_close_ctl_port(&cp[1]);       //Close Stream-in port
-   sleep(1);
+	fprintf(stdout,"Closing ports.......\n");
+	cin_close_ctl_port(&cp[0]);       //Close Control port
+	cin_close_ctl_port(&cp[1]); 			//Close Stream-in port
+	sleep(1);
 
-   printf("CIN shutdown complete!!\n");
+	fprintf(stdout,"CIN shutdown complete!!\n");
 #endif   
    return(0);
 }
