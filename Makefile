@@ -47,11 +47,11 @@ include $(TOP)/configure/RULES
 #J.Farrington
 #for testing
 refresh_libcin: 
-	sudo rm -r lib
-	sudo cp -r libcin-test/lib .
-	sudo rm cin.h
-	sudo cp libcin-test/cin.h .
-	sudo rm cin_register_map.h
-	sudo cp libcin-test/control/cin_register_map.h .
+	rm -r lib
+	cp -r libcin-test/lib .
+	rm cin.h
+	cp libcin-test/cin.h .
+	rm cin_register_map.h
+	cp libcin-test/control/cin_register_map.h .
 	 
 	
