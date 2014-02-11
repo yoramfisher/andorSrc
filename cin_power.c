@@ -3,11 +3,11 @@
 
 #include "cin.h"
 // Set HARDWARE to 1 on real system
-//#define HARDWARE 1
-#undef HARDWARE
+#define HARDWARE 1
+//#undef HARDWARE
 #define LOCAL static
 
-LOCAL char fccd_config_dir[]="../cin_config/";
+LOCAL char fccd_config_dir[]="/home/jfarrington/Documents/cin_config/";
 
 LOCAL char fpga_configfile[]="top_frame_fpga-v1019j.bit";
 LOCAL char cin_configfile_waveform[]="2013_Nov_30-200MHz_CCD_timing.txt";
@@ -35,27 +35,26 @@ int cin_power_up (){
    sprintf(cin_fcric_config,"%s%s", fccd_config_dir,cin_configfile_fcric);
    sprintf(cin_bias_config,"%s%s", fccd_config_dir,cin_configfile_bias);
 
-  cin_off(&cp[0]);        					//Power OFF CIN
+ 	cin_off(&cp[0]);
+	sleep(5);
+
+	cin_on(&cp[0]);
+	sleep(5);
+
+	cin_fp_on(&cp[0]);
+	sleep(5);
+	
+	cin_get_cfg_fpga_status(&cp[0]);
 	sleep(1);
 
-	cin_on(&cp[0]);          					//Power ON CIN
-	sleep(4);
-/*	
-	cin_load_firmware(&cp[0],&cp[1],cin_fpga_config);	//Load CIN Firmware Configuration
+	cin_load_firmware(&cp[0],&cp[1],cin_fpga_config);	
+	sleep(5);
+
+	ret_fpga=cin_get_cfg_fpga_status(&cp[0]);
 	sleep(1);
-*/	
-	ret_fpga=cin_get_cfg_fpga_status(&cp[0]);					//Get CIN FPGA status 
+
+	ret_fclk=cin_get_fclk_status(&cp[0]);			
 	sleep(1);
-/*		
-	cin_set_fclk(&cp[0],200); 				//Set CIN clocks to 200MHz
-	sleep(1);													//Included in latest binary
-*/	
-	ret_fclk=cin_get_fclk_status(&cp[0]);						 //Get CIN clock status 
-	sleep(1);
-	
-	cin_fp_on(&cp[0]);      				//Power ON CIN front Panel
-	sleep(3);												//Wait to allow visual check
-																																			 
 /************************* FCCD Configuration **************************/	
 
 	cin_load_config(&cp[0],cin_waveform_config);		//Load FCCD clock configuration
@@ -67,7 +66,7 @@ int cin_power_up (){
 	cin_load_config(&cp[0],cin_bias_config);		//Load FCCD bias Configuration
 	sleep(3);
 */
-/**********************************************************************/			
+/**********************************************************************/		
 	fprintf(stdout,"\nCIN startup complete!!\n");
 
 	if (ret_fpga==0){fprintf(stdout,"  *FPGA Status: OK\n");}
