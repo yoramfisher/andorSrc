@@ -1,31 +1,82 @@
 #ifndef __CIN_H__
 #define __CIN_H__
 
-#include <stdint.h>
-#include <sys/types.h>
+#include <stdint.h>     // for uint16_t
+#include <stdio.h>      // for fprintf
+#include <sys/socket.h> // For struct sockaddr_in
 #include <netinet/in.h>
-#include <arpa/inet.h>
-#include <sys/time.h>
+#include <netinet/ip.h>
+#include <sys/time.h>   // For timespec
 
-//#define CIN_CTL_IP                   "192.168.1.207"
-#define CIN_CTL_IP                   "192.168.11.112"
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+/* -------------------------------------------------------------------------------
+ *
+ * Global definitions
+ *
+ * -------------------------------------------------------------------------------
+ */
+
+#define CIN_CTL_IP                   "192.168.1.207"
 #define CIN_CTL_PORT                 49200
 
-//#define CIN_DATA_IP                  "10.0.5.207"
-#define CIN_DATA_IP                  "192.168.11.112"
+#define CIN_DATA_IP                  "10.23.5.217"
 #define CIN_DATA_PORT                49201
-#define CIN_DATA_CTL_PORT            49203
+#define CIN_DATA_CTL_PORT            49202
 #define CIN_DATA_MAX_MTU             9000
-#define CIN_DATA_UDP_PACKET_HEADER   48
 #define CIN_DATA_UDP_HEADER          8
 #define CIN_DATA_MAGIC_PACKET        0x0000F4F3F2F1F000
 #define CIN_DATA_MAGIC_PACKET_MASK   0x0000FFFFFFFFFF00
+#define CIN_DATA_DROPPED_PACKET_VAL  0x2000
+#define CIN_DATA_DATA_MASK           0x1FFF
 #define CIN_DATA_PACKET_LEN          8184
-#define CIN_DATA_FRAME_HEIGHT        964
+#define CIN_DATA_MAX_PACKETS         542
+#define CIN_DATA_FRAME_HEIGHT        1924
 #define CIN_DATA_FRAME_WIDTH         1152
-#define CIN_DATA_FRAME_SIZE          2220744
-#define CIN_DATA_DROPPED_PACKET_VAL  0x0
-#define CIN_DATA_RCVBUF              0x200000
+#define CIN_DATA_RCVBUF              100  // Mb 
+
+/* -------------------------------------------------------------------------------
+ *
+ * Definitions for CIN DATA config
+ *
+ * -------------------------------------------------------------------------------
+ */
+
+#define CIN_DATA_MODE_PUSH_PULL         0x01
+#define CIN_DATA_MODE_DBL_BUFFER        0x02
+#define CIN_DATA_MODE_BUFFER            0x04
+#define CIN_DATA_MODE_WRITER            0x08
+#define CIN_DATA_MODE_DBL_BUFFER_COPY   0x10
+
+/* ---------------------------------------------------------------------
+ *
+ * MACROS for debugging
+ *
+ * ---------------------------------------------------------------------
+ */
+
+#ifdef __DEBUG__
+  #define DEBUG_PRINT(fmt, ...) \
+    if(1) { fprintf(stderr, "%s:%d:%s(): " fmt, __FILE__, __LINE__, __func__, __VA_ARGS__); }
+#else
+  #define DEBUG_PRINT(...) do {}while(0)
+#endif
+
+#ifdef __DEBUG__
+  #define DEBUG_COMMENT(fmt)\
+    if(1) { fprintf(stderr, "%s:%d:%s(): " fmt, __FILE__, __LINE__, __func__); }
+#else
+  #define DEBUG_COMMENT(...) do {}while(0)
+#endif
+
+/* ---------------------------------------------------------------------
+ *
+ * Global datastructures
+ *
+ * ---------------------------------------------------------------------
+ */
 
 struct cin_port {
     char *srvaddr;
@@ -37,88 +88,102 @@ struct cin_port {
     struct sockaddr_in sin_srv; /* server info */
     struct sockaddr_in sin_cli; /* client info (us!) */
     socklen_t slen; /* for recvfrom() */
-    unsigned int rcvbuf; /* For setting data recieve buffer */
+    int rcvbuf; /* For setting data recieve buffer */
+    int rcvbuf_rb; /* For readback */
 };
 
-struct cin_data_frame {
+typedef struct cin_data_frame {
   uint16_t *data;
   uint16_t number;
-  struct timespec timestamp;
+  struct timeval timestamp;
+} cin_data_frame_t;
+
+struct cin_data_stats {
+  // Frame data
+
+  int last_frame;
+  double framerate;
+
+  // FIFO data
+  
+  double packet_percent_full;
+  double frame_percent_full;
+  double image_percent_full;
+  long int packet_overruns;
+  long int frame_overruns;
+  long int image_overruns;
+
+  // Packet stats
+
+  long int dropped_packets;
+  long int mallformed_packets;
 };
 
-/* prototypes */
-/**************************** UDP Socket ******************************/
-int cin_init_ctl_port(struct cin_port* cp, char* ipaddr, uint16_t port);
-int cin_close_ctl_port(struct cin_port* cp);
+/* -------------------------------------------------------------------------------
+ *
+ * CIN Control Routines
+ *
+ * -------------------------------------------------------------------------------
+ */
 
-/************************* CIN Read/Write *****************************/
+int cin_init_ctl_port(struct cin_port* cp, char* ipaddr, uint16_t port);
 uint16_t cin_ctl_read(struct cin_port* cp, uint16_t reg);
 int cin_ctl_write(struct cin_port* cp, uint16_t reg, uint16_t val);
-											/*TODO - implement write verification procedure */
-int cin_stream_write(struct cin_port* cp, char* val,int size);
-											/*TODO - implement write verification procedure */
-/********************** CIN PowerUP/PowerDown *************************/
-int cin_on(struct cin_port* cp);          			//Power ON CIN
-int cin_off(struct cin_port* cp);        				//Power OFF CIN
-int cin_fp_on(struct cin_port* cp);      				//Power ON CIN front Panel
-int cin_fp_off(struct cin_port* cp);    				//Power OFF CIN front Panel
+int cin_shutdown(struct cin_port* cp);
 
-/******************* CIN Configuration/Status *************************/
-int cin_load_config(struct cin_port* cp,char *filename);		//Load CIN Configuration File 
-																					/*TODO:-Check that file is loaded properly*/
-int cin_load_firmware(struct cin_port* cp,char *filename);  //Load CIN Firmware Configuration
-																					/*TODO:-Check that file is loaded properly*/
-int cin_set_fclk_125mhz(struct cin_port* cp); 	     				//Set CIN clocks to 125MHz
-																					/*TODO:-Check that clock is properlly set*/
-int cin_get_fclk_status(struct cin_port* cp);   						//Get CIN clock status  		
-																					/*TODO:-Check Boolean comparisons*/
-int cin_get_cfg_fpga_status(struct cin_port* cp);				//Get CIN FPGA status 		
-																					/*TODO:-Check Boolean comparisons*/
-int cin_get_power_status(struct cin_port* cp);					//Get Camera/CIN power Status
+void cin_power_up();
+void cin_power_down();
+void cin_report_power_status();
 
-/**************************** CIN Control *****************************/
-int cin_set_bias(struct cin_port* cp,int val);   		//Turn on/off camera CCD bias
-										//Input:val={1-ON,0-OFF}
-																				
-int cin_set_clocks(struct cin_port* cp,int val);  	//Turn on/off camera clocks
-					    			//Input:val={1-ON,0-OFF}
-
-int cin_set_trigger(struct cin_port* cp,int val); 	//Set trigger source
-//Tested						//Input:val={0-Internal, 1-External1, 2-External2, 3-External 1 or 2}
-
-int cin_get_trigger_status (struct cin_port* cp);//Tested	//Get trigger source status
-//Tested						//Return:{0-Internal, 1-External1, 2-External2, 3-External 1 or 2}*/
-
-int cin_set_exposure_time(struct cin_port* cp,float e_time);  //Set the Camera exposure time
-				 	 					//Input:e_time (ms)					/*TODO:-Malformed packet when MSB=0x0000*/
-
-int cin_set_trigger_delay(struct cin_port* cp,float t_time);  //Set the trigger delay time
-					    			//Input:t_time (us)					/*TODO:-Malformed packet when MSB=0x0000*/
-
-int cin_set_cycle_time(struct cin_port* cp,float c_time);	    //Set the Camera cyle time time
-					    			//Input:c_time (ms)					/*TODO:-Malformed packet when MSB=0x0000*/
-
-/************************* Frame Acquistion *****************************/
-int cin_set_frame_count_reset(struct cin_port* cp); 			//Sets CIN frame counter to 0
-
-/****************************** Testing *********************************/
-int cin_test_cfg_leds(struct cin_port* cp); 	        		//Flash configuration Leds in sequence	
-
-
-/* cindata prototypes */
+/* ---------------------------------------------------------------------
+ *
+ * CIN Data Routines
+ *
+ * ---------------------------------------------------------------------
+ */
 
 int cin_init_data_port(struct cin_port* dp,
                        char* ipaddr, uint16_t port,
                        char* cin_ipaddr, uint16_t cin_port,
-                       unsigned int rcvbuf);
-int cin_data_read(struct cin_port* dp, unsigned char* buffer);
-int cin_data_write(struct cin_port* dp, unsigned char* buffer, int buffer_len);
+                       int rcvbuf);
+/*
+ * Initialize the data port used for recieveing the UDP packets. A
+ * structure of cin_port is modified with the settings. If the strings
+ * are NULL and the ports zero then defaults are used.
+ */
 
-int cin_data_init(void);
+int cin_data_init(int mode, int packet_buffer_len, int frame_buffer_len);
+/*
+ * Initialize the data handeling routines and start the threads for listening.
+ * mode should be set for the desired output. The packet_buffer_len in the
+ * length of the packet FIFO in number of packets. The frame_buffer_len is
+ * the number of data frames to buffer. 
+ */
+ 
 void cin_data_wait_for_threads(void);
+/* 
+ * Block until all th threads have closed. 
+ */
 int cin_data_stop_threads(void);
+/* 
+ * Send a cancel request to all threads.
+ */
 
 struct cin_data_frame* cin_data_get_next_frame(void);
 void cin_data_release_frame(int free_mem);
 
+struct cin_data_frame* cin_data_get_buffered_frame(void);
+void cin_data_release_buffered_frame(void);
+
+struct cin_data_stats cin_data_get_stats(void);
+
+int cin_data_load_frame(uint16_t *buffer, uint16_t *frame_num);
+
+void cin_data_start_monitor_output(void);
+void cin_data_stop_monitor_output(void);
+
+#ifdef __cplusplus
+}
 #endif
+
+#endif //__CIN_H__
