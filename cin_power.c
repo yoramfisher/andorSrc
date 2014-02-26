@@ -4,6 +4,15 @@
 #include <stdlib.h>
 
 #include "cin.h"
+
+// These function prototype should be moved to cin.h!!!!
+int cin_set_bias(struct cin_port* cp,int val);
+int cin_set_clocks(struct cin_port* cp,int val);
+int cin_set_trigger(struct cin_port* cp,int val);
+int cin_set_exposure_time(struct cin_port* cp,float ftime);
+uint16_t cin_get_trigger_status (struct cin_port* cp);
+int cin_set_trigger_delay(struct cin_port* cp,float ftime);
+
 // Set HARDWARE to 1 on real system
 //#define HARDWARE 1
 #undef HARDWARE
@@ -21,13 +30,12 @@ LOCAL char cin_waveform_config[1024];
 LOCAL char cin_fcric_config[1024];
 LOCAL char cin_bias_config[1024];
 LOCAL struct cin_port cp[2];
-int cin_power_up (){
+void cin_power_up (){
 
-  int ret_fpga,ret_fclk;
-   
+	 int ret_fpga,ret_fclk;
+  
    printf("***cin_power_up\n");// debug
    
-
    cin_init_ctl_port(&cp[0], 0, 0);
    cin_init_ctl_port(&cp[1], 0,CIN_DATA_CTL_PORT);
 	 printf("***Control ports initialized\n");// debug
@@ -82,13 +90,12 @@ int cin_power_up (){
 	
 	if (ret_fclk==0){fprintf(stdout,"  *FCLK Status: OK\n");}
 	else{fprintf(stdout,"  *FCLK Status: ERROR\n");}	
-
 #endif
-   return 0;
+ 
 }
 
 
-int cin_power_down(){
+void cin_power_down(){
 
    struct cin_port cp[2];
 
@@ -102,7 +109,9 @@ int cin_power_down(){
    //cin_init_ctl_port(&cp[1], 0,CIN_DATA_CTL_PORT);
    // But should add a check that cp is valid...
 
+
    fprintf(stdout,"Turning off clock and bias.......\n");
+
 	cin_set_bias(&cp[0],0);   	//Turn OFF camera CCD bias
 	sleep(1);						
 
@@ -115,14 +124,17 @@ int cin_power_down(){
 	cin_off(&cp[0]);          	//Power OFF CIN
 	sleep(4);
 
+
 	fprintf(stdout,"Closing ports.......\n");
+
 	cin_close_ctl_port(&cp[0]);       //Close Control port
 	cin_close_ctl_port(&cp[1]); 			//Close Stream-in port
 	sleep(1);
 
 	fprintf(stdout,"CIN shutdown complete!!\n");
+
 #endif   
-   return(0);
+  
 }
 
 

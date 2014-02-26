@@ -16,9 +16,7 @@
 #define USE_LIBCIN 1
 // YF: All added code will be in #ifdef USE_LIBCIN block
 #ifdef USE_LIBCIN
-extern "C" {
 #include "cin.h"
-}
 #endif
 
 
@@ -189,10 +187,12 @@ class AndorCCD : public ADDriver {
 #ifdef USE_LIBCIN 
 protected:
    struct cin_port m_port;
-   struct cin_data_frame *m_frame;
+   NDArray *m_pArray;
+   //struct cin_data_frame *m_frame;
 private:
    int FCCD_Init();
-   int FCCD_GetImage();
+   int FCCD_GetImage(); // NDArray **pArray);
+   void int_handler(int dummy);
    
 #endif    
 
