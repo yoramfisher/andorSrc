@@ -1,10 +1,12 @@
 #include <stdio.h>
 #include <unistd.h> /* for sleep() */
+#include <string.h>
+#include <stdlib.h>
 
 #include "cin.h"
 // Set HARDWARE to 1 on real system
-#define HARDWARE 1
-//#undef HARDWARE
+//#define HARDWARE 1
+#undef HARDWARE
 #define LOCAL static
 
 LOCAL char fccd_config_dir[]="/home/jfarrington/Documents/cin_config/";
@@ -49,6 +51,12 @@ int cin_power_up (){
 
 	cin_load_firmware(&cp[0],&cp[1],cin_fpga_config);	
 	sleep(5);
+
+	cin_ctl_write(&cp[0],0x8013,0x057F);
+	usleep(1000);
+	
+	cin_ctl_write(&cp[0],0x8014,0x0A17);
+	usleep(1000);
 
 	ret_fpga=cin_get_cfg_fpga_status(&cp[0]);
 	sleep(1);
