@@ -39,7 +39,7 @@ int CIN_get_trigger_status();
 int CIN_set_exposure_time(float e_time);
 int CIN_set_trigger_delay(float t_time);
 int CIN_set_cycle_time(float c_time);
-int cin_set_cycle_time(struct cin_port* cp,float ftime);
+int CIN_set_trigger_mode(int val);
 
 
 }
@@ -144,7 +144,7 @@ int AndorCCD::FCCD_Init()
    return (0);   
 }
 
-int AndorCCD::FCCD_GetImage() // NDArray **pArray)
+int AndorCCD::FCCD_GetImage() 
 {
    size_t dims[2];
    int nDims = 2;
@@ -154,8 +154,7 @@ int AndorCCD::FCCD_GetImage() // NDArray **pArray)
    dims[0] = CIN_DATA_FRAME_WIDTH;
    dims[1] = CIN_DATA_FRAME_HEIGHT;
    dataType = NDUInt16; // kick it.
-   //m_pArray = this->pNDArrayPool->alloc(nDims, dims, dataType, 
-   //   sizeof(uint16_t)*dims[0]*dims[1], NULL);
+   
    m_pArray = this->pNDArrayPool->alloc(nDims, dims, dataType, 
       0, NULL);
       
@@ -171,10 +170,6 @@ int AndorCCD::FCCD_GetImage() // NDArray **pArray)
       printf("********** cin_data_load_frame error ****************\r\n");
       return (-1); // error
    }
-//   int status = asynSuccess;
-//   m_frame = cin_data_get_next_frame();
-//   printf("cin_data_get_next_frame(). frame->number %u\n", m_frame->number);
-//   return (0);
 }
 #endif
 
@@ -227,6 +222,8 @@ AndorCCD::AndorCCD(const char *portName, int maxBuffers, size_t maxMemory,
   // YF Custom PV Records
   createParam(FCCDSetBiasString,                  asynParamInt32, &FCCDSetBias);
   createParam(FCCDSetClocksString,                asynParamInt32, &FCCDSetClocks);
+
+  
   
   // Create the epicsEvent for signaling to the status task when parameters should have changed.
   // This will cause it to do a poll immediately, rather than wait for the poll time period.
@@ -322,6 +319,9 @@ AndorCCD::AndorCCD(const char *portName, int maxBuffers, size_t maxMemory,
   /// setupADCSpeeds();
   /// setupPreAmpGains();
   status |= setupShutter(-1);
+
+  // YF Set default trigger mode 0 = Single
+  checkStatus(CIN_set_trigger_mode( 0 ));
 
   setStringParam(AndorMessage, "Defaults Set.");
   callParamCallbacks();
@@ -648,8 +648,6 @@ asynStatus AndorCCD::writeInt32(asynUser *pasynUser, epicsInt32 value)
     
 
     
-    
-    
     else {
       status = ADDriver::writeInt32(pasynUser, value);
     }
@@ -819,90 +817,16 @@ asynStatus AndorCCD::setupShutter(int command)
 
 
 /**
- * Function to check the return status of Andor SDK library functions.
- * @param returnStatus The return status of the SDK function
- * @return 0=success. Does not return in case of failure.
- * @throw std::string An exception is thrown in case of failure.
+ * YF for now, throws error if function returns !0
  */
 unsigned int AndorCCD::checkStatus(unsigned int returnStatus)
 {
   char message[256];
-  if (returnStatus == DRV_SUCCESS) {
+  if (returnStatus == 0) {
     return 0;
-  } else if (returnStatus == DRV_NOT_INITIALIZED) {
-    throw std::string("ERROR: Driver is not initialized.");
-  } else if (returnStatus == DRV_ACQUIRING) {
-    throw std::string("ERROR: Not allowed. Currently acquiring data.");
-  } else if (returnStatus == DRV_P1INVALID) {
-    throw std::string("ERROR: Parameter 1 not valid.");
-  } else if (returnStatus == DRV_P2INVALID) {
-    throw std::string("ERROR: Parameter 2 not valid.");
-  } else if (returnStatus == DRV_P3INVALID) {
-    throw std::string("ERROR: Parameter 3 not valid.");
-  } else if (returnStatus == DRV_P4INVALID) {
-    throw std::string("ERROR: Parameter 4 not valid.");
-  } else if (returnStatus == DRV_P5INVALID) {
-    throw std::string("ERROR: Parameter 5 not valid.");
-  } else if (returnStatus == DRV_P6INVALID) {
-    throw std::string("ERROR: Parameter 6 not valid.");
-  } else if (returnStatus == DRV_P7INVALID) {
-    throw std::string("ERROR: Parameter 7 not valid.");
-  } else if (returnStatus == DRV_ERROR_ACK) {
-    throw std::string("ERROR: Unable to communicate with card.");
-  } else if (returnStatus == DRV_TEMP_OFF) {
-    setStringParam(AndorTempStatusMessage, "Cooler is OFF");
-    return 0;
-  } else if (returnStatus == DRV_TEMP_STABILIZED) {
-    setStringParam(AndorTempStatusMessage, "Stabilized at set point");
-    return 0;
-  } else if (returnStatus == DRV_TEMP_NOT_REACHED) {
-    setStringParam(AndorTempStatusMessage, "Not reached setpoint");
-    return 0;
-  } else if (returnStatus == DRV_TEMP_DRIFT) {
-    setStringParam(AndorTempStatusMessage, "Stabilized but drifted");
-    return 0;
-  } else if (returnStatus == DRV_TEMP_NOT_STABILIZED) {
-    setStringParam(AndorTempStatusMessage, "Not stabilized at set point");
-    return 0;
-  } else if (returnStatus == DRV_VXDNOTINSTALLED) {
-    throw std::string("ERROR: VxD not loaded.");
-  } else if (returnStatus == DRV_INIERROR) {
-    throw std::string("ERROR: Unable to load DETECTOR.INI.");
-  } else if (returnStatus == DRV_COFERROR) {
-    throw std::string("ERROR: Unable to load *.COF.");
-  } else if (returnStatus == DRV_FLEXERROR) {
-    throw std::string("ERROR: Unable to load *.RBF.");
-  } else if (returnStatus == DRV_ERROR_FILELOAD) {
-    throw std::string("ERROR: Unable to load *.COF or *.RBF files.");
-  } else if (returnStatus == DRV_ERROR_PAGELOCK) {
-    throw std::string("ERROR: Unable to acquire lock on requested memory.");
-  } else if (returnStatus == DRV_USBERROR) {
-    throw std::string("ERROR: Unable to detect USB device or not USB 2.0.");
-  } else if (returnStatus == DRV_ERROR_NOCAMERA) {
-    throw std::string("ERROR: No camera found.");
-  } else if (returnStatus == DRV_GENERAL_ERRORS) {
-    throw std::string("ERROR: An error occured while obtaining the number of available cameras.");
-  } else if (returnStatus == DRV_INVALID_MODE) {
-    throw std::string("ERROR: Invalid mode or mode not available.");
-  } else if (returnStatus == DRV_ACQUISITION_ERRORS) {
-    throw std::string("ERROR: Acquisition mode are invalid.");
-  } else if (returnStatus == DRV_ERROR_PAGELOCK) {
-    throw std::string("ERROR: Unable to allocate memory.");
-  } else if (returnStatus == DRV_INVALID_FILTER) {
-    throw std::string("ERROR: Filter not available for current acquisition.");
-  } else if (returnStatus == DRV_IDLE) {
-    throw std::string("ERROR: The system is not currently acquiring.");  
-  } else if (returnStatus == DRV_NO_NEW_DATA) {
-    throw std::string("ERROR: No data to read, or CancelWait() called.");  
-  } else if (returnStatus == DRV_ERROR_CODES) {
-    throw std::string("ERROR: Problem communicating with camera.");  
-  } else if (returnStatus == DRV_LOAD_FIRMWARE_ERROR) {
-    throw std::string("ERROR: Error loading firmware.");  
   } else {
-    sprintf(message, "ERROR: Unknown error code=%d returned from Andor SDK.", returnStatus);
-    throw std::string(message);
-  }
-
+    throw std::string("ERROR!");
+  } 
   return 0;
 }
 
@@ -1020,7 +944,7 @@ asynStatus AndorCCD::setupAcquisition()
   // int FKmode = 4;
   //int FKOffset;
   // AndorADCSpeed_t *pSpeed;
-  //static const char *functionName = "setupAcquisition";
+  static const char *functionName = "setupAcquisition";
   
   getIntegerParam(ADImageMode, &imageMode);
   getIntegerParam(ADNumExposures, &numExposures);
@@ -1076,6 +1000,50 @@ asynStatus AndorCCD::setupAcquisition()
   // for the actual size of the image, so we must compute it.
   setIntegerParam(NDArraySizeX, sizeX/binX);
   setIntegerParam(NDArraySizeY, sizeY/binY);
+  
+  //
+  // YF New code to support setting the trigger mode
+  //
+  try
+  {
+  
+     switch (imageMode) 
+     {
+         case ADImageSingle:
+           if (numExposures == 1) {
+             asynPrint(this->pasynUserSelf, ASYN_TRACE_FLOW, 
+               "%s:%s:, CIN_set_trigger_mode(0)\n", 
+               driverName, functionName);
+             checkStatus(CIN_set_trigger_mode( 0 ) );
+           } else {
+             checkStatus(CIN_set_trigger_mode( 0 ) );
+             // YF: Will FCCD support an accumulation mode??
+             // YF TODO
+           }
+           break;
+
+         case ADImageMultiple:
+            asynPrint(this->pasynUserSelf, ASYN_TRACE_FLOW, 
+               "%s:%s:, CIN_set_trigger_mode(1)\n", 
+               driverName, functionName);
+             checkStatus(CIN_set_trigger_mode( 1 ) );  // Continuous mode
+           break;
+
+         case ADImageContinuous:
+            asynPrint(this->pasynUserSelf, ASYN_TRACE_FLOW, 
+               "%s:%s:, CIN_set_trigger_mode(1)\n", 
+               driverName, functionName);
+             checkStatus(CIN_set_trigger_mode( 1 ) );  // Continuous mode        
+            break;
+
+      } // switch
+   } catch (const std::string &e) {
+    asynPrint(pasynUserSelf, ASYN_TRACE_ERROR,
+      "%s:%s: %s\n",
+      driverName, functionName, e.c_str());
+    return asynError;
+  }
+    
 #if 0 // Andor specfic stuff  
   try {
     asynPrint(this->pasynUserSelf, ASYN_TRACE_FLOW, 
@@ -1236,7 +1204,7 @@ void AndorCCD::dataTask(void)
   //int nDims = 2;
   // int i;
   epicsTimeStamp startTime;
-  //NDArray *pArray;
+  
   int autoSave;
   static const char *functionName = "dataTask";
 
@@ -1308,7 +1276,7 @@ void AndorCCD::dataTask(void)
          ///  driverName, functionName);
          this->unlock();
          // YF TODO  checkStatus(WaitForAcquisition());
-         status = FCCD_GetImage(); // (&pArray);
+         status = FCCD_GetImage(); 
          this->lock();
          asynPrint(this->pasynUserSelf, ASYN_TRACE_FLOW, 
           "%s:%s:, WaitForAcquisition has returned.\n",
@@ -1317,14 +1285,7 @@ void AndorCCD::dataTask(void)
          numExposuresCounter++;
          setIntegerParam(ADNumExposuresCounter, numExposuresCounter);
          callParamCallbacks();
-         // Is there an image available?
-         // YF TODO  status = GetNumberNewImages(&firstImage, &lastImage);
-         ///if (status != DRV_SUCCESS) continue;
-         ///asynPrint(this->pasynUserSelf, ASYN_TRACE_FLOW,
-         ///  "%s:%s:, firstImage=%ld, lastImage=%ld\n",
-         ///  driverName, functionName, (long)firstImage, (long)lastImage);
-         ///for (i=firstImage; i<=lastImage; i++) {
-         ///  // Update counters
+
          getIntegerParam(NDArrayCounter, &imageCounter);
          imageCounter++;
          setIntegerParam(NDArrayCounter, imageCounter);;
@@ -1341,7 +1302,7 @@ void AndorCCD::dataTask(void)
             if (m_pArray)
             {
             // DEBUG {
-               printf("***1***\n"); 
+               //printf("***1***\n"); 
                //printf("nDims%d,   ", nDims);
                //if (dataType == NDUInt32) { printf("dataType:NDUInt32,  "); }
                //if (dataType == NDUInt16) { printf("dataType:NDUInt16,  "); }
@@ -1349,42 +1310,9 @@ void AndorCCD::dataTask(void)
                //printf("sizeX, sizeY %u, %u\n", sizeX, sizeY);
             // }
             
-            
-            
-               // COPY the data from FIFO to NDArrayPool.  Is copy necessary?
-               //
-               //
-               //memcpy(pArray->pData /*dest*/, m_frame->data /*src*/, sizeof(uint16_t)*sizeX*sizeY);
-               //
-               //
-
-               // Expect these to point to the same buffer
-               // printf("pArray->pData:%x, mframe->data:%x\n", pArray->pData, m_frame->data); // DEBUG
-               // YUP.
                
                setIntegerParam(NDArraySize, sizeX * sizeY * sizeof(uint16_t));
-               // Read the oldest array
-               // Is there still an image available?
-               // YF TODO  status = GetNumberNewImages(&firstImage, &lastImage);
-               ///asynPrint(this->pasynUserSelf, ASYN_TRACE_FLOW,
-               ///  "%s:%s:, GetNumberNewImages, status=%d, firstImage=%ld, lastImage=%ld\n", 
-               ///  driverName, functionName, status, (long)firstImage, (long)lastImage);
-               // if (dataType == NDUInt32) {
-                 // asynPrint(this->pasynUserSelf, ASYN_TRACE_FLOW, 
-                   // "%s:%s:, GetImages(%d, %d, %p, %d, %p, %p)\n", 
-                   // driverName, functionName, i, i, pArray->pData, sizeX*sizeY, &validFirst, &validLast);
-                // YF TODO  checkStatus(GetImages(i, i, (at_32*)pArray->pData, 
-                //                      sizeX*sizeY, &validFirst, &validLast));
-                 // setIntegerParam(NDArraySize, sizeX * sizeY * sizeof(epicsUInt32));
-               // }
-               // else if (dataType == NDUInt16) {
-                 // asynPrint(this->pasynUserSelf, ASYN_TRACE_FLOW, 
-                   // "%s:%s:, GetImages16(%d, %d, %p, %d, %p, %p)\n", 
-                   // driverName, functionName, i, i, pArray->pData, sizeX*sizeY, &validFirst, &validLast);
-                // YF TODO checkStatus(GetImages16(i, i, (epicsUInt16*)pArray->pData, 
-                 //                       sizeX*sizeY, &validFirst, &validLast));
-                 // setIntegerParam(NDArraySize, sizeX * sizeY * sizeof(epicsUInt16));
-               // }
+         
                /* Put the frame number and time stamp into the buffer */
                m_pArray->uniqueId = imageCounter;
                m_pArray->timeStamp = startTime.secPastEpoch + startTime.nsec / 1.e9;
@@ -1398,7 +1326,7 @@ void AndorCCD::dataTask(void)
                     "%s:%s:, calling array callbacks\n", 
                     driverName, functionName);
                     
-               printf("***3***\n"); // DEBUG
+               // printf("***3***\n"); // DEBUG
                  
                  
                doCallbacksGenericPointer(m_pArray, NDArrayData, 0);
@@ -1428,13 +1356,7 @@ void AndorCCD::dataTask(void)
       }
       
       
-      
-      
-      // YF Safe place to release frame buffer
-      
-      //printf("***4***\n"); // DEBUG
-      // cin_data_release_frame(1);
-      printf("***5***\n"); // DEBUG
+      // printf("***5***\n"); // DEBUG
        
       /* See if acquisition is done */
       if ((imageMode == ADImageSingle) ||
