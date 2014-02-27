@@ -37,7 +37,7 @@ void cin_power_up (){
    printf("***cin_power_up\n");// debug
    
    cin_init_ctl_port(&cp[0], 0, 0);
-   cin_init_ctl_port(&cp[1], 0,CIN_DATA_CTL_PORT);
+   cin_init_ctl_port(&cp[1], 0,49202);
 	 printf("***Control ports initialized\n");// debug
 #ifdef HARDWARE
    sprintf(cin_fpga_config,"%s%s", fccd_config_dir,fpga_configfile);
