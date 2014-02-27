@@ -30,8 +30,8 @@
 
 // Function prototypes for cin_power.c
 extern "C" {
-//int cin_power_up();
-// int cin_power_down();
+int cin_power_up();
+int cin_power_down();
 int CIN_set_bias(int val);
 int CIN_set_clocks(int val);
 int CIN_set_trigger(int val);
@@ -94,8 +94,8 @@ static void andorStatusTaskC(void *drvPvt);
 static void andorDataTaskC(void *drvPvt);
 static void exitHandler(void *drvPvt);
 
-#define YF_LOCAL_EDITS 1
-
+//#define YF_LOCAL_EDITS 1
+#undef YF_LOCAL_EDITS 
 #ifdef USE_LIBCIN
 
 void AndorCCD::int_handler(int dummy){
