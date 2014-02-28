@@ -21,10 +21,11 @@ extern "C" {
 
 #define CIN_CTL_IP                   "192.168.1.207"
 #define CIN_CTL_PORT                 49200
+#define CIN_CTL_FRMW_PORT            49202
 
-#define CIN_DATA_IP                  "10.23.5.217"
+#define CIN_DATA_IP                  "10.23.5.127"
 #define CIN_DATA_PORT                49201
-#define CIN_DATA_CTL_PORT            49202
+#define CIN_DATA_CTL_PORT            49203
 
 #define CIN_DATA_MAX_MTU             9000
 #define CIN_DATA_UDP_HEADER          8
@@ -199,6 +200,12 @@ int cin_set_trigger(struct cin_port* cp,int val);
 uint16_t cin_get_trigger_status (struct cin_port* cp);	
 /*
  * Return:{0-Internal, 1-External1, 2-External2, 3-External 1 or 2}
+ */
+
+int cin_set_trigger_mode(struct cin_port* cp,int val);
+/*
+ * Input:val= {0-Stop Triggers, set Number of exposures = 1, \
+ * 1-Continuous Trigger, set Number of exposures = 0}
  */
 
 int cin_set_exposure_time(struct cin_port* cp,float e_time);  
