@@ -7,5 +7,5 @@ To Build:
 	$make
 4)Under AndorSRC/:
 	$make clean
-	$make refresh_libcin   (Pulls lib/ and cin.h for libcin-test and copies to AndorSRC/
+	$make refresh_libcin   (Pulls lib/libcin.a, cin.h and cin_register_map.c from libcin-test and copies them into AndorSRC/
 	$make
