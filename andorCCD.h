@@ -191,7 +191,7 @@ protected:
    //struct cin_data_frame *m_frame;
 private:
    int FCCD_Init();
-   int FCCD_GetImage(); // NDArray **pArray);
+   int FCCD_GetImage(); 
    void int_handler(int dummy);
    
 #endif    

@@ -12,6 +12,17 @@ int cin_set_trigger(struct cin_port* cp,int val);
 int cin_set_exposure_time(struct cin_port* cp,float ftime);
 uint16_t cin_get_trigger_status (struct cin_port* cp);
 int cin_set_trigger_delay(struct cin_port* cp,float ftime);
+int cin_set_trigger_mode(struct cin_port* cp,int val);
+int cin_set_cycle_time(struct cin_port* cp,float ftime);
+// ***************************************************************************
+// Remove this stubbed out function once the function is actually defined 
+//  in libcin
+//
+int cin_set_trigger_mode(struct cin_port* cp,int val) { return 0;}
+//
+//
+// ***************************************************************************
+  
 
 // Set HARDWARE to 1 on real system
 //#define HARDWARE 1
@@ -164,6 +175,13 @@ int CIN_get_trigger_status()
    return cin_get_trigger_status(cp);
 }
 
+//val: {0-single, 1-continuous)
+int CIN_set_trigger_mode(int val)
+{
+   return cin_set_trigger_mode(cp, val);
+}
+    
+     
 // Set the Camera exposure time
 // Input:e_time (ms)
 int CIN_set_exposure_time(float e_time)
