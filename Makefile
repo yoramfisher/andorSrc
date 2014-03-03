@@ -44,3 +44,14 @@ include $(TOP)/configure/RULES
 #----------------------------------------
 #  ADD RULES AFTER THIS LINE
 
+#J.Farrington
+#for testing
+refresh_libcin: 
+	rm -r lib
+	cp -r libcin-test/lib .
+	rm cin.h
+	cp libcin-test/include/cin.h .
+	rm cin_register_map.h
+	cp libcin-test/control/cin_register_map.h .
+	 
+	

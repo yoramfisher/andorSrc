@@ -1,5 +1,7 @@
 #include <stdio.h>
 #include <unistd.h> /* for sleep() */
+#include <string.h>
+#include <stdlib.h>
 
 #include "cin.h"
 
@@ -27,11 +29,12 @@ int cin_set_trigger_mode(struct cin_port* cp,int val) { return 0;}
 #undef HARDWARE
 #define LOCAL static
 
-LOCAL char fccd_config_dir[]="../cin_config/";
+LOCAL char fccd_config_dir[]="/home/jfarrington/Documents/cin_config/";
+
 LOCAL char fpga_configfile[]="top_frame_fpga-v1019j.bit";
 LOCAL char cin_configfile_waveform[]="2013_Nov_30-200MHz_CCD_timing.txt";
-LOCAL char cin_configfile_fcric[]="ARRA_fcrics_config_x8_11112011.txt";
-LOCAL char cin_configfile_bias[]="bias_setting_lbl_gold2.txt";
+LOCAL char cin_configfile_fcric[]="2013_Nov_25-200MHz_fCRIC_timing.txt";
+LOCAL char cin_configfile_bias[]="2013_Nov_05_Bias_Settings.txt";
 
 LOCAL char cin_fpga_config[1024];
 LOCAL char cin_waveform_config[1024];
@@ -40,22 +43,20 @@ LOCAL char cin_bias_config[1024];
 LOCAL struct cin_port cp[2];
 void cin_power_up (){
 
-   int ret_fclk,ret_fpga;
-   // debug
-   printf("***cin_power_up\n");
+	 int ret_fpga,ret_fclk;
+  
+   printf("***cin_power_up\n");// debug
    
-#ifdef HARDWARE
    cin_init_ctl_port(&cp[0], 0, 0);
-   cin_init_ctl_port(&cp[1], 0,CIN_DATA_CTL_PORT);
-
-
+   cin_init_ctl_port(&cp[1], 0,49202);
+	 printf("***Control ports initialized\n");// debug
+#ifdef HARDWARE
    sprintf(cin_fpga_config,"%s%s", fccd_config_dir,fpga_configfile);
    sprintf(cin_waveform_config,"%s%s", fccd_config_dir,cin_configfile_waveform);
    sprintf(cin_fcric_config,"%s%s", fccd_config_dir,cin_configfile_fcric);
    sprintf(cin_bias_config,"%s%s", fccd_config_dir,cin_configfile_bias);
 
-   
-   cin_off(&cp[0]);
+ 	cin_off(&cp[0]);
 	sleep(5);
 
 	cin_on(&cp[0]);
@@ -69,6 +70,12 @@ void cin_power_up (){
 
 	cin_load_firmware(&cp[0],&cp[1],cin_fpga_config);	
 	sleep(5);
+
+	cin_ctl_write(&cp[0],0x8013,0x057F);
+	usleep(1000);
+	
+	cin_ctl_write(&cp[0],0x8014,0x0A17);
+	usleep(1000);
 
 	ret_fpga=cin_get_cfg_fpga_status(&cp[0]);
 	sleep(1);
@@ -89,25 +96,11 @@ void cin_power_up (){
 /**********************************************************************/		
 	fprintf(stdout,"\nCIN startup complete!!\n");
 
-	if (ret_fpga==0)
-   {
-      printf(stdout,"  *FPGA Status: OK\n");
-   }
-	else
-   {
-      printf(stdout,"  *FPGA Status: ERROR\n");
-   }
+	if (ret_fpga==0){fprintf(stdout,"  *FPGA Status: OK\n");}
+	else{fprintf(stdout,"  *FPGA Status: ERROR\n");}
 	
-	if (ret_fclk==0)
-   {
-      printf(stdout,"  *FCLK Status: OK\n");
-   }
-	else
-   {
-      printf(stdout,"  *FCLK Status: ERROR\n");
-   }	
-   
-
+	if (ret_fclk==0){fprintf(stdout,"  *FCLK Status: OK\n");}
+	else{fprintf(stdout,"  *FCLK Status: ERROR\n");}	
 #endif
  
 }
@@ -127,7 +120,9 @@ void cin_power_down(){
    //cin_init_ctl_port(&cp[1], 0,CIN_DATA_CTL_PORT);
    // But should add a check that cp is valid...
 
-   printf(stdout,"Turning off clock and bias.......\n");
+
+   fprintf(stdout,"Turning off clock and bias.......\n");
+
 	cin_set_bias(&cp[0],0);   	//Turn OFF camera CCD bias
 	sleep(1);						
 
@@ -140,13 +135,15 @@ void cin_power_down(){
 	cin_off(&cp[0]);          	//Power OFF CIN
 	sleep(4);
 
-	printf(stdout,"Closing ports.......\n");
+
+	fprintf(stdout,"Closing ports.......\n");
+
 	cin_close_ctl_port(&cp[0]);       //Close Control port
 	cin_close_ctl_port(&cp[1]); 			//Close Stream-in port
 	sleep(1);
 
-	printf(stdout,"CIN shutdown complete!!\n");
-	
+	fprintf(stdout,"CIN shutdown complete!!\n");
+
 #endif   
   
 }

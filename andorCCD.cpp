@@ -30,8 +30,8 @@
 
 // Function prototypes for cin_power.c
 extern "C" {
-//int cin_power_up();
-// int cin_power_down();
+int cin_power_up();
+int cin_power_down();
 int CIN_set_bias(int val);
 int CIN_set_clocks(int val);
 int CIN_set_trigger(int val);
@@ -94,8 +94,8 @@ static void andorStatusTaskC(void *drvPvt);
 static void andorDataTaskC(void *drvPvt);
 static void exitHandler(void *drvPvt);
 
-#define YF_LOCAL_EDITS 1
-
+//#define YF_LOCAL_EDITS 1
+#undef YF_LOCAL_EDITS 
 #ifdef USE_LIBCIN
 
 void AndorCCD::int_handler(int dummy){
@@ -109,6 +109,7 @@ int AndorCCD::FCCD_Init()
 {
    int ret= 0;
    
+
 #ifdef YF_LOCAL_EDITS
   if(cin_init_data_port(&m_port, "192.168.11.112", 49201, "192.168.11.112", 49203, 1000))
 #else
@@ -468,7 +469,6 @@ void AndorCCD::report(FILE *fp, int details)
   unsigned int uIntParam4;
   unsigned int uIntParam5;
   unsigned int uIntParam6;
-  AndorCapabilities capabilities;
   ///AndorADCSpeed_t *pSpeed;
   static const char *functionName = "report";
 
