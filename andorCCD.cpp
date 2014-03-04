@@ -315,7 +315,7 @@ AndorCCD::AndorCCD(const char *portName, int maxBuffers, size_t maxMemory,
   status |= setupShutter(-1);
 
   // YF Set default trigger mode 0 = Single
-  // checkStatus(CIN_set_trigger_mode( 0 ));
+  checkStatus(CIN_set_trigger_mode( 0 ));
 
   setStringParam(AndorMessage, "Defaults Set.");
   callParamCallbacks();
@@ -829,17 +829,20 @@ asynStatus AndorCCD::setupShutter(int command)
 
 
 /**
- * YF for now, throws error if function returns !0
+ * Expect returnStatus to be zero, otherwise display error message.
  */
 unsigned int AndorCCD::checkStatus(unsigned int returnStatus)
 {
   char message[256];
-  if (returnStatus == 0) {
+  if (returnStatus == 0) 
+  {
     return 0;
-  } else {
-    throw std::string("ERROR!");
   } 
-  return 0;
+  else 
+  {
+    printf("checkStatus failed\n.");
+    return (-1);
+  } 
 }
 
 
