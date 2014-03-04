@@ -173,9 +173,25 @@ int CIN_get_trigger_status()
 //val: {0-single, 1-continuous)
 int CIN_set_trigger_mode(int val)
 {
+   printf("CIN_set_trigger_mode :%d\n", val);
    return cin_set_trigger_mode(cp, val);
 }
-    
+
+//Starts a single trigger or continuous triggers
+// depending on previous call to set_trigger_mode
+int CIN_trigger_start()
+{
+   printf("CIN_trigger_start\n");
+   return cin_trigger_start(cp);
+}
+  
+//Stops triggers
+int CIN_trigger_stop()
+{
+   printf("CIN_trigger_stop\n");
+   return cin_trigger_stop(cp);
+}
+
      
 // Set the Camera exposure time
 // Input:e_time (ms)
