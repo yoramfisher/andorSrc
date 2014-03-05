@@ -14,14 +14,6 @@ uint16_t cin_get_trigger_status (struct cin_port* cp);
 int cin_set_trigger_delay(struct cin_port* cp,float ftime);
 int cin_set_trigger_mode(struct cin_port* cp,int val);
 int cin_set_cycle_time(struct cin_port* cp,float ftime);
-// ***************************************************************************
-// Remove this stubbed out function once the function is actually defined 
-//  in libcin
-//
-int cin_set_trigger_mode(struct cin_port* cp,int val) { return 0;}
-//
-//
-// ***************************************************************************
   
 
 // Set HARDWARE to 1 on real system
@@ -41,15 +33,21 @@ LOCAL char cin_waveform_config[1024];
 LOCAL char cin_fcric_config[1024];
 LOCAL char cin_bias_config[1024];
 LOCAL struct cin_port cp[2];
+
 void cin_power_up (){
 
-	 int ret_fpga,ret_fclk;
-  
+   int ret_fpga,ret_fclk;  
    printf("***cin_power_up\n");// debug
    
    cin_init_ctl_port(&cp[0], 0, 0);
    cin_init_ctl_port(&cp[1], 0,49202);
-	 printf("***Control ports initialized\n");// debug
+   
+   printf("***cp[0] srvaddr = %s, cliaddr = %s, srvport = %d cliport = %d\r\n", 
+      cp[0].srvaddr, cp[0].cliaddr, cp[0].srvport, cp[0].cliport);
+   printf("***cp[1] srvaddr = %s, cliaddr = %s, srvport = %d cliport = %d\r\n", 
+      cp[1].srvaddr, cp[1].cliaddr, cp[1].srvport, cp[1].cliport);
+	printf("***Control ports initialized\n");// debug
+
 #ifdef HARDWARE
    sprintf(cin_fpga_config,"%s%s", fccd_config_dir,fpga_configfile);
    sprintf(cin_waveform_config,"%s%s", fccd_config_dir,cin_configfile_waveform);
@@ -70,6 +68,14 @@ void cin_power_up (){
 
 	cin_load_firmware(&cp[0],&cp[1],cin_fpga_config);	
 	sleep(5);
+   
+   // Set CIN DATA IP address
+#define LOWER_IP_ADDRESS 0x057F  // 5.127
+	cin_ctl_write(&cp[0],REG_IF_IP_FAB1B0,  LOWER_IP_ADDRESS);
+	usleep(1000);
+#define UPPER_IP_ADDRESS 0x0A17  // 10.23
+	cin_ctl_write(&cp[0],REG_IF_IP_FAB1B1,  UPPER_IP_ADDRESS);
+	usleep(1000);
 
 	cin_ctl_write(&cp[0],0x8013,0x057F);
 	usleep(1000);
@@ -105,7 +111,6 @@ void cin_power_up (){
  
 }
 
-
 void cin_power_down(){
 
    struct cin_port cp[2];
@@ -114,12 +119,8 @@ void cin_power_down(){
    printf("***cin_power_down\n");
    
 #ifdef HARDWARE
-    
-   // YF  Don't need to init again
-   //cin_init_ctl_port(&cp[0], 0, 0);/* use default CIN control-port IP addr and IP port */
-   //cin_init_ctl_port(&cp[1], 0,CIN_DATA_CTL_PORT);
-   // But should add a check that cp is valid...
-
+   
+   // Should add a check that cp is valid...
 
    fprintf(stdout,"Turning off clock and bias.......\n");
 
@@ -134,7 +135,6 @@ void cin_power_down(){
 
 	cin_off(&cp[0]);          	//Power OFF CIN
 	sleep(4);
-
 
 	fprintf(stdout,"Closing ports.......\n");
 
@@ -178,9 +178,25 @@ int CIN_get_trigger_status()
 //val: {0-single, 1-continuous)
 int CIN_set_trigger_mode(int val)
 {
+   printf("CIN_set_trigger_mode :%d\n", val);
    return cin_set_trigger_mode(cp, val);
 }
-    
+
+//Starts a single trigger or continuous triggers
+// depending on previous call to set_trigger_mode
+int CIN_trigger_start()
+{
+   printf("CIN_trigger_start\n");
+   return cin_trigger_start(cp);
+}
+  
+//Stops triggers
+int CIN_trigger_stop()
+{
+   printf("CIN_trigger_stop\n");
+   return cin_trigger_stop(cp);
+}
+
      
 // Set the Camera exposure time
 // Input:e_time (ms)

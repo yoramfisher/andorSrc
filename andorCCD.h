@@ -110,8 +110,6 @@ class AndorCCD : public ADDriver {
    */
   static const epicsUInt32 AASingle;
   static const epicsUInt32 AAAccumulate;
-  static const epicsUInt32 AAKinetics;
-  static const epicsUInt32 AAFastKinetics;
   static const epicsUInt32 AARunTillAbort;
   static const epicsUInt32 AATimeDelayedInt;
 
@@ -151,15 +149,6 @@ class AndorCCD : public ADDriver {
   static const epicsInt32 AShutterOpen;
   static const epicsInt32 AShutterClose;
 
-  /**
-   * List of file formats
-   */
-  static const epicsInt32 AFFTIFF;
-  static const epicsInt32 AFFBMP;
-  static const epicsInt32 AFFSIF;
-  static const epicsInt32 AFFEDF;
-  static const epicsInt32 AFFRAW;
-  static const epicsInt32 AFFFITS;
 
   epicsEventId statusEvent;
   epicsEventId dataEvent;
@@ -188,7 +177,7 @@ class AndorCCD : public ADDriver {
 protected:
    struct cin_port m_port;
    NDArray *m_pArray;
-   //struct cin_data_frame *m_frame;
+
 private:
    int FCCD_Init();
    int FCCD_GetImage(); 

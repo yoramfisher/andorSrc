@@ -5,6 +5,7 @@
  *
  * Ver
  * 0.1 YF 1/20/14
+ * 0.2 YF 3/3/14
  *
  */
 
@@ -40,6 +41,8 @@ int CIN_set_exposure_time(float e_time);
 int CIN_set_trigger_delay(float t_time);
 int CIN_set_cycle_time(float c_time);
 int CIN_set_trigger_mode(int val);
+int CIN_trigger_start();
+int CIN_trigger_stop();
 
 
 }
@@ -53,8 +56,6 @@ const epicsInt32 AndorCCD::AImageFastKinetics = ADImageContinuous+1;
 
 const epicsUInt32 AndorCCD::AASingle = 1;
 const epicsUInt32 AndorCCD::AAAccumulate = 2;
-const epicsUInt32 AndorCCD::AAKinetics = 3;
-const epicsUInt32 AndorCCD::AAFastKinetics = 4;
 const epicsUInt32 AndorCCD::AARunTillAbort = 5;
 const epicsUInt32 AndorCCD::AATimeDelayedInt = 9;
 
@@ -82,20 +83,15 @@ const epicsInt32 AndorCCD::AShutterAuto = 0;
 const epicsInt32 AndorCCD::AShutterOpen = 1;
 const epicsInt32 AndorCCD::AShutterClose = 2;
 
-const epicsInt32 AndorCCD::AFFTIFF = 0;
-const epicsInt32 AndorCCD::AFFBMP  = 1;
-const epicsInt32 AndorCCD::AFFSIF  = 2;
-const epicsInt32 AndorCCD::AFFEDF  = 3;
-const epicsInt32 AndorCCD::AFFRAW  = 4;
-const epicsInt32 AndorCCD::AFFFITS = 5;
 
 //C Function prototypes to tie in with EPICS
 static void andorStatusTaskC(void *drvPvt);
 static void andorDataTaskC(void *drvPvt);
 static void exitHandler(void *drvPvt);
 
-//#define YF_LOCAL_EDITS 1
-#undef YF_LOCAL_EDITS 
+#define YF_LOCAL_EDITS 1
+//#undef YF_LOCAL_EDITS 
+
 #ifdef USE_LIBCIN
 
 void AndorCCD::int_handler(int dummy){
@@ -249,12 +245,12 @@ AndorCCD::AndorCCD(const char *portName, int maxBuffers, size_t maxMemory,
   try {
     printf("%s:%s: initializing camera\n",
       driverName, functionName);
-    // YF TODO checkStatus(Initialize(mInstallPath));
+
     setStringParam(AndorMessage, "Camera successfully initialized.");
-    // YF TODO  checkStatus(GetDetector(&sizeX, &sizeY));
-    // YF TODO checkStatus(GetHeadModel(model));
-    // YF TODO checkStatus(SetReadMode(ARImage));
-    // YF TODO checkStatus(SetImage(binX, binY, minX+1, minX+sizeX, minY+1, minY+sizeY));
+    // YF  checkStatus(GetDetector(&sizeX, &sizeY));
+    // YF checkStatus(GetHeadModel(model));
+    // YF checkStatus(SetReadMode(ARImage));
+    // YF checkStatus(SetImage(binX, binY, minX+1, minX+sizeX, minY+1, minY+sizeY));
     sizeX = CIN_DATA_FRAME_WIDTH;
     sizeY = CIN_DATA_FRAME_HEIGHT;
     
@@ -380,8 +376,8 @@ AndorCCD::~AndorCCD()
   try {
     printf("Shutdown and freeing up memory...\n");
     this->lock();
-    // YF TODO checkStatus(FreeInternalMemory());
-    // YF TODO checkStatus(ShutDown());
+    // YF checkStatus(FreeInternalMemory());
+    // YF checkStatus(ShutDown());
     // TODO cin_data_stop_threads()
     // TODO cin_data_wait_for_threads();
     printf("Camera shutting down as part of IOC exit.\n");
@@ -557,42 +553,57 @@ asynStatus AndorCCD::writeInt32(asynUser *pasynUser, epicsInt32 value)
     getIntegerParam(function, &oldValue);
     status = setIntegerParam(function, value);
 
-    if (function == ADAcquire) {
-      getIntegerParam(ADStatus, &adstatus);
-      if (value && (adstatus == ADStatusIdle)) {
-        try {
+    if (function == ADAcquire) 
+    {
+    
+      if (value)  // User clicked 'Start' button
+      {
+         // Send the hardware a start trigger command
+         CIN_trigger_start();
           mAcquiringData = 1;
-          //We send an event at the bottom of this function.
-        } catch (const std::string &e) {
-          asynPrint(pasynUserSelf, ASYN_TRACE_ERROR,
-            "%s:%s: %s\n",
-            driverName, functionName, e.c_str());
-          status = asynError;
-        }
       }
-      if (!value && (adstatus != ADStatusIdle)) {
-        try {
-          asynPrint(this->pasynUserSelf, ASYN_TRACE_FLOW, 
-            "%s:%s:, AbortAcquisition()\n", 
-            driverName, functionName);
-          // YF TODO  checkStatus(AbortAcquisition());
-          mAcquiringData = 0;
-          asynPrint(this->pasynUserSelf, ASYN_TRACE_FLOW, 
-            "%s:%s:, FreeInternalMemory()\n", 
-            driverName, functionName);
-          // YF TODO  checkStatus(FreeInternalMemory());
-          asynPrint(this->pasynUserSelf, ASYN_TRACE_FLOW, 
-            "%s:%s:, CancelWait()\n", 
-            driverName, functionName);
-          // YF TODO  checkStatus(CancelWait());
-        } catch (const std::string &e) {
-          asynPrint(pasynUserSelf, ASYN_TRACE_ERROR,
-            "%s:%s: %s\n",
-            driverName, functionName, e.c_str());
-          status = asynError;
-        } 
+      else     // User clicked 'Stop' Button
+      {
+         // Send the hardware a stop trigger command
+         CIN_trigger_stop();
       }
+      //getIntegerParam(ADStatus, &adstatus);
+//      if (value && (adstatus == ADStatusIdle)) {
+//        try {
+//          mAcquiringData = 1;
+//          //We send an event at the bottom of this function.
+//        } catch (const std::string &e) {
+//          asynPrint(pasynUserSelf, ASYN_TRACE_ERROR,
+//            "%s:%s: %s\n",
+//            driverName, functionName, e.c_str());
+//          status = asynError;
+//        }
+//      }
+//      if (!value && (adstatus != ADStatusIdle)) {
+//        try {
+//          asynPrint(this->pasynUserSelf, ASYN_TRACE_FLOW, 
+//            "%s:%s:, AbortAcquisition()\n", 
+//            driverName, functionName);
+//          // YF TODO  checkStatus(AbortAcquisition());
+//          mAcquiringData = 0;
+//          asynPrint(this->pasynUserSelf, ASYN_TRACE_FLOW, 
+//            "%s:%s:, FreeInternalMemory()\n", 
+//            driverName, functionName);
+//          // YF TODO  checkStatus(FreeInternalMemory());
+//          asynPrint(this->pasynUserSelf, ASYN_TRACE_FLOW, 
+//            "%s:%s:, CancelWait()\n", 
+//            driverName, functionName);
+//          // YF TODO  checkStatus(CancelWait());
+//       } catch (const std::string &e) {
+//          asynPrint(pasynUserSelf, ASYN_TRACE_ERROR,
+//            "%s:%s: %s\n",
+//            driverName, functionName, e.c_str());
+//          status = asynError;
+//        } 
+//    }
     }
+    
+    
     else if ((function == ADNumExposures) || (function == ADNumImages) ||
              (function == ADImageMode)                                 ||
              (function == ADBinX)         || (function == ADBinY)      ||
@@ -600,7 +611,7 @@ asynStatus AndorCCD::writeInt32(asynUser *pasynUser, epicsInt32 value)
              (function == ADSizeX)        || (function == ADSizeY)  )
              {
       status = setupAcquisition();
-      // YF TODO  if (function == AndorAdcSpeed) setupPreAmpGains();
+
       if (status != asynSuccess) setIntegerParam(function, oldValue);
     }
     else if (function == AndorCoolerParam) {
@@ -817,17 +828,20 @@ asynStatus AndorCCD::setupShutter(int command)
 
 
 /**
- * YF for now, throws error if function returns !0
+ * Expect returnStatus to be zero, otherwise display error message.
  */
 unsigned int AndorCCD::checkStatus(unsigned int returnStatus)
 {
   char message[256];
-  if (returnStatus == 0) {
+  if (returnStatus == 0) 
+  {
     return 0;
-  } else {
-    throw std::string("ERROR!");
   } 
-  return 0;
+  else 
+  {
+    printf("checkStatus failed\n.");
+    return (-1);
+  } 
 }
 
 
@@ -934,115 +948,116 @@ void AndorCCD::statusTask(void)
 /** Set up acquisition parameters */
 asynStatus AndorCCD::setupAcquisition()
 {
-  int numExposures;
-  int numImages;
-  int imageMode;
-  ///int adcSpeed;
-  int triggerMode;
-  int binX, binY, minX, minY, sizeX, sizeY, maxSizeX, maxSizeY;
-  //float acquireTimeAct, acquirePeriodAct, accumulatePeriodAct;
-  // int FKmode = 4;
-  //int FKOffset;
-  // AndorADCSpeed_t *pSpeed;
-  static const char *functionName = "setupAcquisition";
-  
-  getIntegerParam(ADImageMode, &imageMode);
-  getIntegerParam(ADNumExposures, &numExposures);
-  if (numExposures <= 0) {
+   int numExposures;
+   int numImages;
+   int imageMode;
+   ///int adcSpeed;
+   int triggerMode;
+   int binX, binY, minX, minY, sizeX, sizeY, maxSizeX, maxSizeY;
+   //float acquireTimeAct, acquirePeriodAct, accumulatePeriodAct;
+   // int FKmode = 4;
+   //int FKOffset;
+   // AndorADCSpeed_t *pSpeed;
+   static const char *functionName = "setupAcquisition";
+
+   getIntegerParam(ADImageMode, &imageMode);
+   getIntegerParam(ADNumExposures, &numExposures);
+   if (numExposures <= 0) {
     numExposures = 1;
     setIntegerParam(ADNumExposures, numExposures);
-  }
-  getIntegerParam(ADNumImages, &numImages);
-  if (numImages <= 0) {
+   }
+   getIntegerParam(ADNumImages, &numImages);
+   if (numImages <= 0) {
     numImages = 1;
     setIntegerParam(ADNumImages, numImages);
-  }
-  getIntegerParam(ADBinX, &binX);
-  if (binX <= 0) {
+   }
+   getIntegerParam(ADBinX, &binX);
+   if (binX <= 0) {
     binX = 1;
     setIntegerParam(ADBinX, binX);
-  }
-  getIntegerParam(ADBinY, &binY);
-  if (binY <= 0) {
+   }
+   getIntegerParam(ADBinY, &binY);
+   if (binY <= 0) {
     binY = 1;
     setIntegerParam(ADBinY, binY);
-  }
-  getIntegerParam(ADMinX, &minX);
-  getIntegerParam(ADMinY, &minY);
-  getIntegerParam(ADSizeX, &sizeX);
-  getIntegerParam(ADSizeY, &sizeY);
-  getIntegerParam(ADMaxSizeX, &maxSizeX);
-  getIntegerParam(ADMaxSizeY, &maxSizeY);
-  if (minX > (maxSizeX - 2*binX)) {
+   }
+   getIntegerParam(ADMinX, &minX);
+   getIntegerParam(ADMinY, &minY);
+   getIntegerParam(ADSizeX, &sizeX);
+   getIntegerParam(ADSizeY, &sizeY);
+   getIntegerParam(ADMaxSizeX, &maxSizeX);
+   getIntegerParam(ADMaxSizeY, &maxSizeY);
+   if (minX > (maxSizeX - 2*binX)) {
     minX = maxSizeX - 2*binX;
     setIntegerParam(ADMinX, minX);
-  }
-  if (minY > (maxSizeY - 2*binY)) {
+   }
+   if (minY > (maxSizeY - 2*binY)) {
     minY = maxSizeY - 2*binY;
     setIntegerParam(ADMinY, minY);
-  }
-  if ((minX + sizeX) > maxSizeX) {
+   }
+   if ((minX + sizeX) > maxSizeX) {
     sizeX = maxSizeX - minX;
     setIntegerParam(ADSizeX, sizeX);
-  }
-  if ((minY + sizeY) > maxSizeY) {
+   }
+   if ((minY + sizeY) > maxSizeY) {
     sizeY = maxSizeY - minY;
     setIntegerParam(ADSizeY, sizeY);
-  }
+   }
   
-  // Note: we do triggerMode and adcChannel in this function because they change
-  // the computed actual AcquirePeriod and AccumulatePeriod
-  getIntegerParam(ADTriggerMode, &triggerMode);
-  ///getIntegerParam(AndorAdcSpeed, &adcSpeed);
-  ///pSpeed = &mADCSpeeds[adcSpeed];
+   // Note: we do triggerMode and adcChannel in this function because they change
+   // the computed actual AcquirePeriod and AccumulatePeriod
+   getIntegerParam(ADTriggerMode, &triggerMode);
+   ///getIntegerParam(AndorAdcSpeed, &adcSpeed);
+   ///pSpeed = &mADCSpeeds[adcSpeed];
+
+   // Unfortunately there does not seem to be a way to query the Andor SDK 
+   // for the actual size of the image, so we must compute it.
+   setIntegerParam(NDArraySizeX, sizeX/binX);
+   setIntegerParam(NDArraySizeY, sizeY/binY);
   
-  // Unfortunately there does not seem to be a way to query the Andor SDK 
-  // for the actual size of the image, so we must compute it.
-  setIntegerParam(NDArraySizeX, sizeX/binX);
-  setIntegerParam(NDArraySizeY, sizeY/binY);
-  
-  //
-  // YF New code to support setting the trigger mode
-  //
-  try
-  {
-  
-     switch (imageMode) 
-     {
+   //
+   // YF New code to support setting the trigger mode
+   //
+   try
+   {
+
+      switch (imageMode) 
+      {
          case ADImageSingle:
-           if (numExposures == 1) {
-             asynPrint(this->pasynUserSelf, ASYN_TRACE_FLOW, 
-               "%s:%s:, CIN_set_trigger_mode(0)\n", 
-               driverName, functionName);
+            
+            asynPrint(this->pasynUserSelf, ASYN_TRACE_FLOW, 
+               "%s:%s:, CIN_set_trigger_mode(0)\n", driverName, functionName);
+             // Set Hardware to single trigger mode.
+             // This also sets number of exposures = 1
              checkStatus(CIN_set_trigger_mode( 0 ) );
-           } else {
-             checkStatus(CIN_set_trigger_mode( 0 ) );
-             // YF: Will FCCD support an accumulation mode??
-             // YF TODO
-           }
-           break;
+             break;
 
          case ADImageMultiple:
+            // YF This mode is not fully fleshed out
             asynPrint(this->pasynUserSelf, ASYN_TRACE_FLOW, 
                "%s:%s:, CIN_set_trigger_mode(1)\n", 
                driverName, functionName);
              checkStatus(CIN_set_trigger_mode( 1 ) );  // Continuous mode
-           break;
+             // JF TODO
+             // checkStatus(CIN_set_number_exposures( numExposures ) );
+             // 
+            break;
 
          case ADImageContinuous:
             asynPrint(this->pasynUserSelf, ASYN_TRACE_FLOW, 
                "%s:%s:, CIN_set_trigger_mode(1)\n", 
                driverName, functionName);
-             checkStatus(CIN_set_trigger_mode( 1 ) );  // Continuous mode        
+             checkStatus(CIN_set_trigger_mode( 1 ) );  // Continuous mode    
             break;
 
       } // switch
-   } catch (const std::string &e) {
-    asynPrint(pasynUserSelf, ASYN_TRACE_ERROR,
-      "%s:%s: %s\n",
-      driverName, functionName, e.c_str());
-    return asynError;
-  }
+   } 
+   catch (const std::string &e) 
+   {
+      asynPrint(pasynUserSelf, ASYN_TRACE_ERROR,  "%s:%s: %s\n",
+         driverName, functionName, e.c_str());
+      return asynError;
+   }
     
 #if 0 // Andor specfic stuff  
   try {
@@ -1176,7 +1191,7 @@ asynStatus AndorCCD::setupAcquisition()
   
  #endif
   
-  return asynSuccess;
+   return asynSuccess;
 }
 
 
@@ -1262,25 +1277,15 @@ void AndorCCD::dataTask(void)
       acquiring = 0;
     }
 
-    while (acquiring && mAcquiringData) {
+    while (acquiring && mAcquiringData) 
+    {
       try {
-         // YF TODO checkStatus(GetStatus(&acquireStatus));
-         ///asynPrint(this->pasynUserSelf, ASYN_TRACE_FLOW, 
-         ///  "%s:%s:, GetStatus returned %d\n",
-         ///  driverName, functionName, acquireStatus);
-
-         //  YF this is only way out of loop
-         ///if (acquireStatus != DRV_ACQUIRING) break;
-         ///asynPrint(this->pasynUserSelf, ASYN_TRACE_FLOW, 
-         ///  "%s:%s:, WaitForAcquisition().\n",
-         ///  driverName, functionName);
+         
          this->unlock();
-         // YF TODO  checkStatus(WaitForAcquisition());
-         status = FCCD_GetImage(); 
+            status = FCCD_GetImage(); 
          this->lock();
          asynPrint(this->pasynUserSelf, ASYN_TRACE_FLOW, 
-          "%s:%s:, WaitForAcquisition has returned.\n",
-          driverName, functionName);
+          "%s:%s:, Got an image.\n", driverName, functionName);
          getIntegerParam(ADNumExposuresCounter, &numExposuresCounter);
          numExposuresCounter++;
          setIntegerParam(ADNumExposuresCounter, numExposuresCounter);
@@ -1301,16 +1306,7 @@ void AndorCCD::dataTask(void)
             
             if (m_pArray)
             {
-            // DEBUG {
-               //printf("***1***\n"); 
-               //printf("nDims%d,   ", nDims);
-               //if (dataType == NDUInt32) { printf("dataType:NDUInt32,  "); }
-               //if (dataType == NDUInt16) { printf("dataType:NDUInt16,  "); }
-               //printf("\n");
-               //printf("sizeX, sizeY %u, %u\n", sizeX, sizeY);
-            // }
-            
-               
+                           
                setIntegerParam(NDArraySize, sizeX * sizeY * sizeof(uint16_t));
          
                /* Put the frame number and time stamp into the buffer */
@@ -1343,10 +1339,9 @@ void AndorCCD::dataTask(void)
                printf("Out of memory in data task!\n");
             }
           } // if (arrayCallbacks) {
-          // Save data if autosave is enabled
-          ///if (autoSave) this->saveDataFrame(i);
+
           callParamCallbacks();
-        ///} // for loop
+
       } catch (const std::string &e) {
         asynPrint(pasynUserSelf, ASYN_TRACE_ERROR,
           "%s:%s: %s\n",
@@ -1358,13 +1353,15 @@ void AndorCCD::dataTask(void)
       
       // printf("***5***\n"); // DEBUG
        
+       // Never exit the acquire loop.
+       // Instead rely on hardware to switch from single trigger to continuous mode
       /* See if acquisition is done */
-      if ((imageMode == ADImageSingle) ||
-         ((imageMode == ADImageMultiple) &&
-          (numImagesCounter >= numImages))) {
-          
-            acquiring = 0;
-      }
+//      if ((imageMode == ADImageSingle) ||
+//         ((imageMode == ADImageMultiple) &&
+//          (numImagesCounter >= numImages))) {
+//          
+//            acquiring = 0;
+//      }
     } // while acquiring
       
     //Now clear main thread flag
