@@ -43,6 +43,7 @@ int CIN_set_cycle_time(float c_time);
 int CIN_set_trigger_mode(int val);
 int CIN_trigger_start();
 int CIN_trigger_stop();
+int CIN_set_number_exposures(int numExp);
 
 
 }
@@ -89,8 +90,8 @@ static void andorStatusTaskC(void *drvPvt);
 static void andorDataTaskC(void *drvPvt);
 static void exitHandler(void *drvPvt);
 
-//#define YF_LOCAL_EDITS 1
-#undef YF_LOCAL_EDITS 
+#define YF_LOCAL_EDITS 1
+//#undef YF_LOCAL_EDITS 
 
 #ifdef USE_LIBCIN
 
@@ -1024,30 +1025,27 @@ asynStatus AndorCCD::setupAcquisition()
       switch (imageMode) 
       {
          case ADImageSingle:
-            
             asynPrint(this->pasynUserSelf, ASYN_TRACE_FLOW, 
                "%s:%s:, CIN_set_trigger_mode(0)\n", driverName, functionName);
              // Set Hardware to single trigger mode.
              // This also sets number of exposures = 1
-             checkStatus(CIN_set_trigger_mode( 0 ) );
-             break;
+            checkStatus(CIN_set_trigger_mode( 0 ) );
+            break;
 
          case ADImageMultiple:
-            // YF This mode is not fully fleshed out
             asynPrint(this->pasynUserSelf, ASYN_TRACE_FLOW, 
                "%s:%s:, CIN_set_trigger_mode(1)\n", 
                driverName, functionName);
-             checkStatus(CIN_set_trigger_mode( 1 ) );  // Continuous mode
-             // JF TODO
-             // checkStatus(CIN_set_number_exposures( numExposures ) );
-             // 
+            // YF Assume mode should be continuous mode - not sure.
+            checkStatus(CIN_set_trigger_mode( 1 ) );  // Continuous mode
+            CIN_set_number_exposures(numExposures);
             break;
 
          case ADImageContinuous:
             asynPrint(this->pasynUserSelf, ASYN_TRACE_FLOW, 
                "%s:%s:, CIN_set_trigger_mode(1)\n", 
                driverName, functionName);
-             checkStatus(CIN_set_trigger_mode( 1 ) );  // Continuous mode    
+            checkStatus(CIN_set_trigger_mode( 1 ) );  // Continuous mode    
             break;
 
       } // switch

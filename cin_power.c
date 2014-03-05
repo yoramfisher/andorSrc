@@ -6,6 +6,7 @@
 #include "cin.h"
 
 // These function prototype should be moved to cin.h!!!!
+/*
 int cin_set_bias(struct cin_port* cp,int val);
 int cin_set_clocks(struct cin_port* cp,int val);
 int cin_set_trigger(struct cin_port* cp,int val);
@@ -15,6 +16,7 @@ int cin_set_trigger_delay(struct cin_port* cp,float ftime);
 int cin_set_trigger_mode(struct cin_port* cp,int val);
 int cin_set_cycle_time(struct cin_port* cp,float ftime);
   
+  */
 
 // Set HARDWARE to 1 on real system
 //#define HARDWARE 1
@@ -219,3 +221,7 @@ int CIN_set_cycle_time(float c_time)
    return cin_set_cycle_time(cp,c_time);  
 }
 
+int CIN_set_number_exposures(int numExp)
+{
+   return cin_set_number_exposures(cp, numExp);
+}
