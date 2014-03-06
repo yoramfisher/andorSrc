@@ -377,17 +377,19 @@ AndorCCD::~AndorCCD()
   try {
     printf("Shutdown and freeing up memory...\n");
     this->lock();
-    // YF checkStatus(FreeInternalMemory());
-    // YF checkStatus(ShutDown());
-    // TODO cin_data_stop_threads()
-    // TODO cin_data_wait_for_threads();
     printf("Camera shutting down as part of IOC exit.\n");
+    cin_data_stop_threads();
     this->unlock();
+    sleep(2);
+    // TODO cin_data_wait_for_threads();
+    
+
   } catch (const std::string &e) {
     asynPrint(pasynUserSelf, ASYN_TRACE_ERROR,
       "%s:%s: %s\n",
       driverName, functionName, e.c_str());
   }
+  printf("Destructor done.");
 }
 
 
@@ -1422,7 +1424,7 @@ int andorCCDConfig(const char *portName, int maxBuffers, size_t maxMemory,
 // 
 // IOC shell configuration command for cin power up
 //  
-  int FCCD_cin_power_up(const char *strParam)
+int FCCD_cin_power_up(const char *strParam)
 {
    printf("cin_power_up: %s\n", strParam);
    cin_power_up(); // defined in cin_power.c

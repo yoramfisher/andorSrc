@@ -4,37 +4,38 @@
 #include <stdlib.h>
 
 #include "cin.h"
+#include <iocsh.h>
+#include <epicsExport.h>
 
-// These function prototype should be moved to cin.h!!!!
-/*
-int cin_set_bias(struct cin_port* cp,int val);
-int cin_set_clocks(struct cin_port* cp,int val);
-int cin_set_trigger(struct cin_port* cp,int val);
-int cin_set_exposure_time(struct cin_port* cp,float ftime);
-uint16_t cin_get_trigger_status (struct cin_port* cp);
-int cin_set_trigger_delay(struct cin_port* cp,float ftime);
-int cin_set_trigger_mode(struct cin_port* cp,int val);
-int cin_set_cycle_time(struct cin_port* cp,float ftime);
-  
-  */
 
 // Set HARDWARE to 1 on real system
 //#define HARDWARE 1
 #undef HARDWARE
 #define LOCAL static
 
-LOCAL char fccd_config_dir[]="/home/jfarrington/Documents/cin_config/";
+#define kSTR_UNINITIALIZED "---"
 
-LOCAL char fpga_configfile[]="top_frame_fpga-v1019j.bit";
-LOCAL char cin_configfile_waveform[]="2013_Nov_30-200MHz_CCD_timing.txt";
-LOCAL char cin_configfile_fcric[]="2013_Nov_25-200MHz_fCRIC_timing.txt";
-LOCAL char cin_configfile_bias[]="2013_Nov_05_Bias_Settings.txt";
 
-LOCAL char cin_fpga_config[1024];
-LOCAL char cin_waveform_config[1024];
-LOCAL char cin_fcric_config[1024];
-LOCAL char cin_bias_config[1024];
+//LOCAL char fccd_config_dir[]=      "/home/jfarrington/Documents/cin_config/";
+//LOCAL char fpga_configfile[]=      "top_frame_fpga-v1019j.bit";
+//LOCAL char cin_configfile_waveform[]= "2013_Nov_30-200MHz_CCD_timing.txt";
+//LOCAL char cin_configfile_fcric[]= "2013_Nov_25-200MHz_fCRIC_timing.txt";
+//LOCAL char cin_configfile_bias[]=  "2013_Nov_05_Bias_Settings.txt";
+
+LOCAL char cin_fpga_config[1024]     = kSTR_UNINITIALIZED;
+LOCAL char cin_waveform_config[1024] = kSTR_UNINITIALIZED;
+LOCAL char cin_fcric_config[1024]    = kSTR_UNINITIALIZED;
+LOCAL char cin_bias_config[1024]     = kSTR_UNINITIALIZED;
 LOCAL struct cin_port cp[2];
+
+static const iocshArg FCCD_Config_Dirs_Arg  = {"Path", iocshArgString};
+static const iocshArg * const FCCD_ConfigDirsArgs[] =  
+   {&FCCD_Config_Dirs_Arg, &FCCD_Config_Dirs_Arg, &FCCD_Config_Dirs_Arg, 
+    &FCCD_Config_Dirs_Arg, &FCCD_Config_Dirs_Arg };
+static const iocshFuncDef configFCCD_Dirs = {"FCCD_ConfigDirs", 5, FCCD_ConfigDirsArgs};
+
+
+
 
 void cin_power_up (){
 
@@ -48,15 +49,35 @@ void cin_power_up (){
       cp[0].srvaddr, cp[0].cliaddr, cp[0].srvport, cp[0].cliport);
    printf("***cp[1] srvaddr = %s, cliaddr = %s, srvport = %d cliport = %d\r\n", 
       cp[1].srvaddr, cp[1].cliaddr, cp[1].srvport, cp[1].cliport);
-	printf("***Control ports initialized\n");// debug
+   printf("***Control ports initialized\n");// debug
 
+   
+   // Check that file paths have been initialized
+   if  (strcmp(cin_fpga_config,kSTR_UNINITIALIZED) == 0)  
+   {
+      fprintf(stdout,"\n!Severe Error. File Path cin_fpga_config has not been set!\n\n");
+      return;     // ****** error out *********
+   }
+   if  (strcmp(cin_waveform_config,kSTR_UNINITIALIZED) == 0)  
+   {
+      fprintf(stdout,"\n!Severe Error. File Path cin_waveform_config has not been set!\n\n");
+      return;     // ****** error out *********
+   }
+   if  (strcmp(cin_fcric_config,kSTR_UNINITIALIZED) == 0) 
+   {
+      fprintf(stdout,"\n!Severe Error. File Path cin_fcric_config has not been set!\n\n");
+      return;     // ****** error out *********
+   }
+   if  (strcmp(cin_bias_config,kSTR_UNINITIALIZED) == 0) 
+   {
+      fprintf(stdout,"/n!Severe Error. File Path cin_bias_config has not been set!/n/n");
+      return;     // ****** error out *********
+   }
+   
+   
 #ifdef HARDWARE
-   sprintf(cin_fpga_config,"%s%s", fccd_config_dir,fpga_configfile);
-   sprintf(cin_waveform_config,"%s%s", fccd_config_dir,cin_configfile_waveform);
-   sprintf(cin_fcric_config,"%s%s", fccd_config_dir,cin_configfile_fcric);
-   sprintf(cin_bias_config,"%s%s", fccd_config_dir,cin_configfile_bias);
 
- 	cin_off(&cp[0]);
+	cin_off(&cp[0]);
 	sleep(5);
 
 	cin_on(&cp[0]);
@@ -225,3 +246,39 @@ int CIN_set_number_exposures(int numExp)
 {
    return cin_set_number_exposures(cp, numExp);
 }
+
+//extern "C" {
+
+   static void configFCCD_DirsCallFunc(const iocshArgBuf *args)
+   {
+       FCCD_ConfigDirs(args[0].sval, args[1].sval, args[2].sval, args[3].sval, args[4].sval);
+   }
+   static void FCCD_Dirs_Register(void)
+   {
+
+       iocshRegister(&configFCCD_Dirs, configFCCD_DirsCallFunc);
+   }
+
+   int FCCD_ConfigDirs(
+      const char *fccd_config_dir, 
+      const char *fpga_configfile,
+      const char *cin_configfile_waveform , 
+      const char *cin_configfile_fcric, 
+      const char *cin_configfile_bias)
+   {
+      printf("fccd_config_dir: %s\n", fccd_config_dir);
+      printf("fpga_configfile: %s\n", fpga_configfile);
+      printf("cin_configfile_waveform: %s\n", cin_configfile_waveform);
+      printf("cin_configfile_fcric: %s\n", cin_configfile_fcric);
+      printf("cin_configfile_bias: %s\n", cin_configfile_bias);
+     
+      sprintf(cin_fpga_config,"%s%s", fccd_config_dir,fpga_configfile);
+      sprintf(cin_waveform_config,"%s%s", fccd_config_dir,cin_configfile_waveform);
+      sprintf(cin_fcric_config,"%s%s", fccd_config_dir,cin_configfile_fcric);
+      sprintf(cin_bias_config,"%s%s", fccd_config_dir,cin_configfile_bias);
+
+      return(0);
+   }
+   
+   epicsExportRegistrar(FCCD_Dirs_Register);
+//}
