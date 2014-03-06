@@ -240,6 +240,12 @@ int cin_trigger_stop(struct cin_port* cp);
  * Stops triggers
  */
  
+ 
+int cin_set_number_exposures(struct cin_port* cp, int  numExp);
+/*
+ * numExp >= 2
+ */
+ 
 /*------------------------
  * Frame Acquistion
  *------------------------*/

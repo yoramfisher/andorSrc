@@ -12,6 +12,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <string>
+#include <unistd.h>
 
 #include <epicsTime.h>
 #include <epicsThread.h>
