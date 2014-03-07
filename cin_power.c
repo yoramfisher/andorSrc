@@ -244,6 +244,7 @@ int CIN_set_cycle_time(float c_time)
 
 int CIN_set_number_exposures(int numExp)
 {
+   printf("CIN_set_number_exposures:%d\n",numExp);
    return cin_set_number_exposures(cp, numExp);
 }
 

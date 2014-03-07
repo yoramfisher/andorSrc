@@ -91,8 +91,8 @@ static void andorStatusTaskC(void *drvPvt);
 static void andorDataTaskC(void *drvPvt);
 static void exitHandler(void *drvPvt);
 
-#define YF_LOCAL_EDITS 1
-//#undef YF_LOCAL_EDITS 
+//#define YF_LOCAL_EDITS 1
+#undef YF_LOCAL_EDITS 
 
 #ifdef USE_LIBCIN
 
@@ -1041,7 +1041,7 @@ asynStatus AndorCCD::setupAcquisition()
                driverName, functionName);
             // YF Assume mode should be continuous mode - not sure.
             checkStatus(CIN_set_trigger_mode( 1 ) );  // Continuous mode
-            CIN_set_number_exposures(numExposures);
+            CIN_set_number_exposures(numImages);
             break;
 
          case ADImageContinuous:
