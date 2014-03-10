@@ -12,6 +12,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <string>
+#include <unistd.h>
 
 #include <epicsTime.h>
 #include <epicsThread.h>
@@ -1040,7 +1041,7 @@ asynStatus AndorCCD::setupAcquisition()
                driverName, functionName);
             // YF Assume mode should be continuous mode - not sure.
             checkStatus(CIN_set_trigger_mode( 1 ) );  // Continuous mode
-            CIN_set_number_exposures(numExposures);
+            CIN_set_number_exposures(numImages);
             break;
 
          case ADImageContinuous:
