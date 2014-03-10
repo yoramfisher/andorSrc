@@ -6,11 +6,12 @@
 #include "cin.h"
 #include <iocsh.h>
 #include <epicsExport.h>
+#include "cin_register_map.h"
 
 
 // Set HARDWARE to 1 on real system
-//#define HARDWARE 1
-#undef HARDWARE
+#define HARDWARE 1
+//#undef HARDWARE
 #define LOCAL static
 
 #define kSTR_UNINITIALIZED "---"
@@ -85,25 +86,18 @@ void cin_power_up (){
 
 	cin_fp_on(&cp[0]);
 	sleep(5);
-	
-	cin_get_cfg_fpga_status(&cp[0]);
-	sleep(1);
 
 	cin_load_firmware(&cp[0],&cp[1],cin_fpga_config);	
 	sleep(5);
    
-   // Set CIN DATA IP address
+	// Set CIN DATA IP address to 10.23.5.127 
 #define LOWER_IP_ADDRESS 0x057F  // 5.127
-	cin_ctl_write(&cp[0],REG_IF_IP_FAB1B0,  LOWER_IP_ADDRESS);
-	usleep(1000);
 #define UPPER_IP_ADDRESS 0x0A17  // 10.23
-	cin_ctl_write(&cp[0],REG_IF_IP_FAB1B1,  UPPER_IP_ADDRESS);
-	usleep(1000);
+ 
+	cin_ctl_write(&cp[0],REG_IF_IP_FAB1B0,  LOWER_IP_ADDRESS);
+        usleep(1000);
 
-	cin_ctl_write(&cp[0],0x8013,0x057F);
-	usleep(1000);
-	
-	cin_ctl_write(&cp[0],0x8014,0x0A17);
+	cin_ctl_write(&cp[0],REG_IF_IP_FAB1B1,  UPPER_IP_ADDRESS);
 	usleep(1000);
 
 	ret_fpga=cin_get_cfg_fpga_status(&cp[0]);
@@ -111,6 +105,10 @@ void cin_power_up (){
 
 	ret_fclk=cin_get_fclk_status(&cp[0]);			
 	sleep(1);
+
+	cin_get_power_status(&cp[0]);
+	sleep(1);
+
 /************************* FCCD Configuration **************************/	
 
 	cin_load_config(&cp[0],cin_waveform_config);		//Load FCCD clock configuration
@@ -244,6 +242,7 @@ int CIN_set_cycle_time(float c_time)
 
 int CIN_set_number_exposures(int numExp)
 {
+   printf("CIN_set_number_exposures:%d\n",numExp);
    return cin_set_number_exposures(cp, numExp);
 }
 

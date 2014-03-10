@@ -91,8 +91,8 @@ static void andorStatusTaskC(void *drvPvt);
 static void andorDataTaskC(void *drvPvt);
 static void exitHandler(void *drvPvt);
 
-#define YF_LOCAL_EDITS 1
-//#undef YF_LOCAL_EDITS 
+//#define YF_LOCAL_EDITS 1
+#undef YF_LOCAL_EDITS 
 
 #ifdef USE_LIBCIN
 
