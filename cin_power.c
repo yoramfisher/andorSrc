@@ -196,7 +196,7 @@ int CIN_get_trigger_status()
    return cin_get_trigger_status(cp);
 }
 
-//val: {0-single, 1-continuous)
+//val: {1-single, 0-continuous, N>1 is Multiple N Images)
 int CIN_set_trigger_mode(int val)
 {
    printf("CIN_set_trigger_mode :%d\n", val);
@@ -240,11 +240,7 @@ int CIN_set_cycle_time(float c_time)
    return cin_set_cycle_time(cp,c_time);  
 }
 
-int CIN_set_number_exposures(int numExp)
-{
-   printf("CIN_set_number_exposures:%d\n",numExp);
-   return cin_set_number_exposures(cp, numExp);
-}
+
 
 //extern "C" {
 

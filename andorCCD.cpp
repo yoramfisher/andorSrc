@@ -44,7 +44,6 @@ int CIN_set_cycle_time(float c_time);
 int CIN_set_trigger_mode(int val);
 int CIN_trigger_start();
 int CIN_trigger_stop();
-int CIN_set_number_exposures(int numExp);
 
 
 }
@@ -319,8 +318,8 @@ AndorCCD::AndorCCD(const char *portName, int maxBuffers, size_t maxMemory,
   /// setupPreAmpGains();
   status |= setupShutter(-1);
 
-  // YF Set default trigger mode 0 = Single
-  checkStatus(CIN_set_trigger_mode( 0 ));
+  // YF Set default trigger mode 1 = Single
+  checkStatus(CIN_set_trigger_mode( 1 ));
 
   setStringParam(AndorMessage, "Defaults Set.");
   callParamCallbacks();
@@ -1029,26 +1028,26 @@ asynStatus AndorCCD::setupAcquisition()
       {
          case ADImageSingle:
             asynPrint(this->pasynUserSelf, ASYN_TRACE_FLOW, 
-               "%s:%s:, CIN_set_trigger_mode(0)\n", driverName, functionName);
+               "%s:%s:, CIN_set_trigger_mode(1)\n", driverName, functionName);
              // Set Hardware to single trigger mode.
              // This also sets number of exposures = 1
-            checkStatus(CIN_set_trigger_mode( 0 ) );
+            checkStatus(CIN_set_trigger_mode( 1 ) ); // Single Image mode
             break;
 
          case ADImageMultiple:
             asynPrint(this->pasynUserSelf, ASYN_TRACE_FLOW, 
-               "%s:%s:, CIN_set_trigger_mode(1)\n", 
+               "%s:%s:, CIN_set_trigger_mode(n)\n", 
                driverName, functionName);
             // YF Assume mode should be continuous mode - not sure.
-            checkStatus(CIN_set_trigger_mode( 1 ) );  // Continuous mode
-            CIN_set_number_exposures(numImages);
+            checkStatus(CIN_set_trigger_mode( numImages ) );  // Multiple Image Mode
+            
             break;
 
          case ADImageContinuous:
             asynPrint(this->pasynUserSelf, ASYN_TRACE_FLOW, 
-               "%s:%s:, CIN_set_trigger_mode(1)\n", 
+               "%s:%s:, CIN_set_trigger_mode(0)\n", 
                driverName, functionName);
-            checkStatus(CIN_set_trigger_mode( 1 ) );  // Continuous mode    
+            checkStatus(CIN_set_trigger_mode( 0 ) );  // Continuous mode    
             break;
 
       } // switch
