@@ -12,6 +12,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <string>
+#include <unistd.h>
 
 #include <epicsTime.h>
 #include <epicsThread.h>
@@ -317,8 +318,8 @@ AndorCCD::AndorCCD(const char *portName, int maxBuffers, size_t maxMemory,
   /// setupPreAmpGains();
   status |= setupShutter(-1);
 
-  // YF Set default trigger mode 0 = Single
-  checkStatus(CIN_set_trigger_mode( 0 ));
+  // YF Set default trigger mode 1 = Single
+  checkStatus(CIN_set_trigger_mode( 1 ));
 
   setStringParam(AndorMessage, "Defaults Set.");
   callParamCallbacks();
@@ -376,17 +377,19 @@ AndorCCD::~AndorCCD()
   try {
     printf("Shutdown and freeing up memory...\n");
     this->lock();
-    // YF checkStatus(FreeInternalMemory());
-    // YF checkStatus(ShutDown());
-    // TODO cin_data_stop_threads()
-    // TODO cin_data_wait_for_threads();
     printf("Camera shutting down as part of IOC exit.\n");
+    cin_data_stop_threads();
     this->unlock();
+    sleep(2);
+    // TODO cin_data_wait_for_threads();
+    
+
   } catch (const std::string &e) {
     asynPrint(pasynUserSelf, ASYN_TRACE_ERROR,
       "%s:%s: %s\n",
       driverName, functionName, e.c_str());
   }
+  printf("Destructor done.");
 }
 
 
@@ -1024,30 +1027,27 @@ asynStatus AndorCCD::setupAcquisition()
       switch (imageMode) 
       {
          case ADImageSingle:
-            
             asynPrint(this->pasynUserSelf, ASYN_TRACE_FLOW, 
-               "%s:%s:, CIN_set_trigger_mode(0)\n", driverName, functionName);
+               "%s:%s:, CIN_set_trigger_mode(1)\n", driverName, functionName);
              // Set Hardware to single trigger mode.
              // This also sets number of exposures = 1
-             checkStatus(CIN_set_trigger_mode( 0 ) );
-             break;
+            checkStatus(CIN_set_trigger_mode( 1 ) ); // Single Image mode
+            break;
 
          case ADImageMultiple:
-            // YF This mode is not fully fleshed out
             asynPrint(this->pasynUserSelf, ASYN_TRACE_FLOW, 
-               "%s:%s:, CIN_set_trigger_mode(1)\n", 
+               "%s:%s:, CIN_set_trigger_mode(n)\n", 
                driverName, functionName);
-             checkStatus(CIN_set_trigger_mode( 1 ) );  // Continuous mode
-             // JF TODO
-             // checkStatus(CIN_set_number_exposures( numExposures ) );
-             // 
+            // YF Assume mode should be continuous mode - not sure.
+            checkStatus(CIN_set_trigger_mode( numImages ) );  // Multiple Image Mode
+            
             break;
 
          case ADImageContinuous:
             asynPrint(this->pasynUserSelf, ASYN_TRACE_FLOW, 
-               "%s:%s:, CIN_set_trigger_mode(1)\n", 
+               "%s:%s:, CIN_set_trigger_mode(0)\n", 
                driverName, functionName);
-             checkStatus(CIN_set_trigger_mode( 1 ) );  // Continuous mode    
+            checkStatus(CIN_set_trigger_mode( 0 ) );  // Continuous mode    
             break;
 
       } // switch
@@ -1424,7 +1424,7 @@ int andorCCDConfig(const char *portName, int maxBuffers, size_t maxMemory,
 // 
 // IOC shell configuration command for cin power up
 //  
-  int FCCD_cin_power_up(const char *strParam)
+int FCCD_cin_power_up(const char *strParam)
 {
    printf("cin_power_up: %s\n", strParam);
    cin_power_up(); // defined in cin_power.c

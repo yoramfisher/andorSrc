@@ -1,3 +1,4 @@
 registrar("andorCCDRegister")
 registrar(cin_power_upRegister)
 registrar(cin_power_downRegister)
+registrar(FCCD_Dirs_Register)
