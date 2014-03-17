@@ -6,7 +6,7 @@
  * Ver
  * 0.1 YF 1/20/14
  * 0.2 YF 3/3/14
- *
+ * 0.3 YF 3/13/14
  */
 
 #include <stdio.h>
@@ -49,7 +49,18 @@ int CIN_trigger_stop();
 }
 
 
+enum 
+{
+   modeInProcess,
+   modeStart,
+   modeFinished
+} flagAcquireMode  = modeInProcess;
+
+
+
 static const char *driverName = "andorCCD";
+static int flagAcquireDone = 0;
+static int m_bFirstTimeThrough = 0;
 
 //Definitions of static class data members
 
@@ -337,6 +348,7 @@ AndorCCD::AndorCCD(const char *portName, int maxBuffers, size_t maxMemory,
   mFastPollingPeriod = 0.05; //seconds
 
   mAcquiringData = 0;
+  m_bRequestStop = 0;
   
   if (stackSize == 0) stackSize = epicsThreadGetStackSize(epicsThreadStackMedium);
 
@@ -561,16 +573,25 @@ asynStatus AndorCCD::writeInt32(asynUser *pasynUser, epicsInt32 value)
     
       if (value)  // User clicked 'Start' button
       {
+         mAcquiringData = 1;  // Must set this flag first
+         flagAcquireMode = modeStart;
+
+         m_bFirstTimeThrough = 1; 
+         m_bRequestStop = 0;
          // Send the hardware a start trigger command
-         CIN_trigger_start();
-          mAcquiringData = 1;
+         CIN_trigger_start(); // Then tell hardware to trigger
+         //adstatus = ADStatusAcquire; 
       }
       else     // User clicked 'Stop' Button
       {
          // Send the hardware a stop trigger command
          CIN_trigger_stop();
+         m_bRequestStop = 1;
+         
+         // mAcquiringData = 0;
+         // adstatus = ADStatusIdle; 
       }
-      //getIntegerParam(ADStatus, &adstatus);
+      // setIntegerParam(ADStatus, adstatus);
 //      if (value && (adstatus == ADStatusIdle)) {
 //        try {
 //          mAcquiringData = 1;
@@ -655,8 +676,20 @@ asynStatus AndorCCD::writeInt32(asynUser *pasynUser, epicsInt32 value)
          int gts;
          CIN_set_trigger(value);
          
+         // Hardware requires setting to Single Image Mode when setting to
+         //  external trigger mode
+         if (value > 0) // 1,2,3 is external
+         {
+            // Exter1, Exter2 or Exter 1| 2
+            checkStatus(CIN_set_trigger_mode( 1 ) ); 
+            setIntegerParam(ADImageMode, ADImageSingle); 
+         }
+         
          gts =  CIN_get_trigger_status();
-         setIntegerParam(ADTriggerMode, gts);
+         if (gts >=0 && gts <= 3)
+         {
+            setIntegerParam(ADTriggerMode, gts);
+         }
          // callParamCallbacks();
     }
     
@@ -891,7 +924,21 @@ void AndorCCD::statusTask(void)
     }
 
     this->lock();
+    
+    if (flagAcquireMode == modeStart) 
+    {
+       setIntegerParam(ADStatus, ADStatusAcquire);
+       flagAcquireMode = modeInProcess;
+    }
+    else if (flagAcquireMode == modeFinished) 
+    {
+       setIntegerParam(ADStatus, ADStatusIdle);
+       setIntegerParam(ADAcquire, 0);
+       flagAcquireMode = modeInProcess;
+    }
 
+        
+    
 #if 0
     try {
       //Only read these if we are not acquiring data
@@ -1284,6 +1331,27 @@ void AndorCCD::dataTask(void)
          this->unlock();
             status = FCCD_GetImage(); 
          this->lock();
+
+         
+         
+         if (m_bFirstTimeThrough)
+         {
+            //Read some parameters
+            getIntegerParam(NDDataType, &itemp); dataType = (NDDataType_t)itemp;
+            getIntegerParam(NDAutoSave, &autoSave);
+            getIntegerParam(NDArrayCallbacks, &arrayCallbacks);
+            getIntegerParam(NDArraySizeX, &sizeX);
+            getIntegerParam(NDArraySizeY, &sizeY);
+            getIntegerParam(ADNumImages, &numImages);
+            // Reset the counters
+            setIntegerParam(ADNumImagesCounter, 0);
+            setIntegerParam(ADNumExposuresCounter, 0);
+            getIntegerParam(ADImageMode, &imageMode);
+            // setIntegerParam(ADStatus, 1 /*"Acquire", def in ADBase.template */); 
+
+            callParamCallbacks();
+            m_bFirstTimeThrough = 0;
+      }
          asynPrint(this->pasynUserSelf, ASYN_TRACE_FLOW, 
           "%s:%s:, Got an image.\n", driverName, functionName);
          getIntegerParam(ADNumExposuresCounter, &numExposuresCounter);
@@ -1356,16 +1424,28 @@ void AndorCCD::dataTask(void)
        // Never exit the acquire loop.
        // Instead rely on hardware to switch from single trigger to continuous mode
       /* See if acquisition is done */
-//      if ((imageMode == ADImageSingle) ||
-//         ((imageMode == ADImageMultiple) &&
-//          (numImagesCounter >= numImages))) {
-//          
-//            acquiring = 0;
-//      }
+      if ((imageMode == ADImageSingle) ||
+         ((imageMode == ADImageMultiple) &&
+          (numImagesCounter >= numImages))) {
+            //acquiring = 0;
+            flagAcquireMode = modeFinished;
+      }
+      
+      if (m_bRequestStop == 1)
+      {
+         // Problematic...  How to flush out the rest of the FIFO.
+         // Option 1 is to run until FIFO.length = 0
+         // Option 2 is to stop immediately and dump the FIFO
+         // 
+         // TODO
+         flagAcquireMode = modeFinished;
+         m_bRequestStop = 0;
+      }
     } // while acquiring
       
     //Now clear main thread flag
     mAcquiringData = 0;
+    m_bRequestStop = 0;
     setIntegerParam(ADAcquire, 0);
     setIntegerParam(ADStatus, 0); 
 
