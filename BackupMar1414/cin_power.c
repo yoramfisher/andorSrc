@@ -10,12 +10,18 @@
 
 
 // Set HARDWARE to 1 on real system
-#define HARDWARE 1
-//#undef HARDWARE
+//#define HARDWARE 1
+#undef HARDWARE
 #define LOCAL static
 
 #define kSTR_UNINITIALIZED "---"
 
+
+//LOCAL char fccd_config_dir[]=      "/home/jfarrington/Documents/cin_config/";
+//LOCAL char fpga_configfile[]=      "top_frame_fpga-v1019j.bit";
+//LOCAL char cin_configfile_waveform[]= "2013_Nov_30-200MHz_CCD_timing.txt";
+//LOCAL char cin_configfile_fcric[]= "2013_Nov_25-200MHz_fCRIC_timing.txt";
+//LOCAL char cin_configfile_bias[]=  "2013_Nov_05_Bias_Settings.txt";
 
 LOCAL char cin_fpga_config[1024]     = kSTR_UNINITIALIZED;
 LOCAL char cin_waveform_config[1024] = kSTR_UNINITIALIZED;

@@ -1,0 +1,50 @@
+../andorCCD.cpp: In member function ‘int AndorCCD::FCCD_Init()’:
+../andorCCD.cpp:111:88: warning: deprecated conversion from string constant to ‘char*’ [-Wwrite-strings]
+../andorCCD.cpp:111:88: warning: deprecated conversion from string constant to ‘char*’ [-Wwrite-strings]
+../andorCCD.cpp: In constructor ‘AndorCCD::AndorCCD(const char*, int, size_t, const char*, int, int)’:
+../andorCCD.cpp:198:7: warning: unused variable ‘binX’ [-Wunused-variable]
+../andorCCD.cpp:198:15: warning: unused variable ‘binY’ [-Wunused-variable]
+../andorCCD.cpp:198:23: warning: unused variable ‘minX’ [-Wunused-variable]
+../andorCCD.cpp:198:31: warning: unused variable ‘minY’ [-Wunused-variable]
+../andorCCD.cpp: In member function ‘virtual asynStatus AndorCCD::readEnum(asynUser*, char**, int*, int*, size_t, size_t*)’:
+../andorCCD.cpp:411:7: warning: unused variable ‘i’ [-Wunused-variable]
+../andorCCD.cpp: In member function ‘virtual void AndorCCD::report(FILE*, int)’:
+../andorCCD.cpp:458:7: warning: unused variable ‘param1’ [-Wunused-variable]
+../andorCCD.cpp:459:9: warning: unused variable ‘fParam1’ [-Wunused-variable]
+../andorCCD.cpp:461:7: warning: unused variable ‘i’ [-Wunused-variable]
+../andorCCD.cpp:462:8: warning: unused variable ‘sParam’ [-Wunused-variable]
+../andorCCD.cpp:463:16: warning: unused variable ‘uIntParam1’ [-Wunused-variable]
+../andorCCD.cpp:464:16: warning: unused variable ‘uIntParam2’ [-Wunused-variable]
+../andorCCD.cpp:465:16: warning: unused variable ‘uIntParam3’ [-Wunused-variable]
+../andorCCD.cpp:466:16: warning: unused variable ‘uIntParam4’ [-Wunused-variable]
+../andorCCD.cpp:467:16: warning: unused variable ‘uIntParam5’ [-Wunused-variable]
+../andorCCD.cpp:468:16: warning: unused variable ‘uIntParam6’ [-Wunused-variable]
+../andorCCD.cpp: In member function ‘virtual asynStatus AndorCCD::writeInt32(asynUser*, epicsInt32)’:
+../andorCCD.cpp:547:9: warning: unused variable ‘adstatus’ [-Wunused-variable]
+../andorCCD.cpp: In member function ‘asynStatus AndorCCD::setupShutter(int)’:
+../andorCCD.cpp:803:7: warning: variable ‘openTime’ set but not used [-Wunused-but-set-variable]
+../andorCCD.cpp:803:17: warning: variable ‘closeTime’ set but not used [-Wunused-but-set-variable]
+../andorCCD.cpp:806:22: warning: unused variable ‘functionName’ [-Wunused-variable]
+../andorCCD.cpp: In member function ‘unsigned int AndorCCD::checkStatus(unsigned int)’:
+../andorCCD.cpp:836:8: warning: unused variable ‘message’ [-Wunused-variable]
+../andorCCD.cpp: In member function ‘void AndorCCD::statusTask()’:
+../andorCCD.cpp:854:7: warning: unused variable ‘value’ [-Wunused-variable]
+../andorCCD.cpp: In member function ‘void AndorCCD::dataTask()’:
+../andorCCD.cpp:1212:16: warning: variable ‘dataType’ set but not used [-Wunused-but-set-variable]
+../andorCCD.cpp: In member function ‘asynStatus AndorCCD::setupShutter(int)’:
+../andorCCD.cpp:819:5: warning: ‘shutterMode’ may be used uninitialized in this function [-Wuninitialized]
+../cin_power.c: In function ‘cin_power_up’:
+../cin_power.c:41:17: warning: unused variable ‘ret_fclk’ [-Wunused-variable]
+../cin_power.c:41:8: warning: unused variable ‘ret_fpga’ [-Wunused-variable]
+../cin_power.c: In function ‘cin_power_down’:
+../cin_power.c:118:20: warning: unused variable ‘cp’ [-Wunused-variable]
+../cin_power.c: At top level:
+../cin_power.c:26:12: warning: ‘fccd_config_dir’ defined but not used [-Wunused-variable]
+../cin_power.c:28:12: warning: ‘fpga_configfile’ defined but not used [-Wunused-variable]
+../cin_power.c:29:12: warning: ‘cin_configfile_waveform’ defined but not used [-Wunused-variable]
+../cin_power.c:30:12: warning: ‘cin_configfile_fcric’ defined but not used [-Wunused-variable]
+../cin_power.c:31:12: warning: ‘cin_configfile_bias’ defined but not used [-Wunused-variable]
+../cin_power.c:33:12: warning: ‘cin_fpga_config’ defined but not used [-Wunused-variable]
+../cin_power.c:34:12: warning: ‘cin_waveform_config’ defined but not used [-Wunused-variable]
+../cin_power.c:35:12: warning: ‘cin_fcric_config’ defined but not used [-Wunused-variable]
+../cin_power.c:36:12: warning: ‘cin_bias_config’ defined but not used [-Wunused-variable]
